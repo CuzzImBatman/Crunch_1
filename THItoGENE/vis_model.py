@@ -91,63 +91,63 @@ class ImageClassifier(pl.LightningModule):
         return parser
 
 
-class STModel(pl.LightningModule):
-    def __init__(self, feature_model=None, n_genes=1000, hidden_dim=2048, learning_rate=1e-5, use_mask=False,
-                 use_pos=False, cls=False):
-        super().__init__()
-        self.save_hyperparameters()
-        # self.feature_model = None
-        if feature_model:
-            # self.feature_model = ImageClassifier.load_from_checkpoint(feature_model)
-            # self.feature_model.freeze()
-            self.feature_extractor = ImageClassifier.load_from_checkpoint(feature_model)
-        else:
-            self.feature_extractor = FeatureExtractor()
-        # self.pos_embed = nn.Linear(2, hidden_dim)
-        self.pred_head = nn.Linear(hidden_dim, n_genes)
+# class STModel(pl.LightningModule):
+#     def __init__(self, feature_model=None, n_genes=1000, hidden_dim=2048, learning_rate=1e-5, use_mask=False,
+#                  use_pos=False, cls=False):
+#         super().__init__()
+#         self.save_hyperparameters()
+#         # self.feature_model = None
+#         if feature_model:
+#             # self.feature_model = ImageClassifier.load_from_checkpoint(feature_model)
+#             # self.feature_model.freeze()
+#             self.feature_extractor = ImageClassifier.load_from_checkpoint(feature_model)
+#         else:
+#             self.feature_extractor = FeatureExtractor()
+#         # self.pos_embed = nn.Linear(2, hidden_dim)
+#         self.pred_head = nn.Linear(hidden_dim, n_genes)
 
-        self.learning_rate = learning_rate
-        self.n_genes = n_genes
+#         self.learning_rate = learning_rate
+#         self.n_genes = n_genes
 
-    def forward(self, patch, center):
-        feature = self.feature_extractor(patch).flatten(1)
-        h = feature
-        pred = self.pred_head(F.relu(h))
-        return pred
+#     def forward(self, patch, center):
+#         feature = self.feature_extractor(patch).flatten(1)
+#         h = feature
+#         pred = self.pred_head(F.relu(h))
+#         return pred
 
-    def training_step(self, batch, batch_idx):
-        patch, center, exp = batch
-        pred = self(patch, center)
-        loss = F.mse_loss(pred, exp)
-        self.log('train_loss', loss)
-        return loss
+#     def training_step(self, batch, batch_idx):
+#         patch, center, exp = batch
+#         pred = self(patch, center)
+#         loss = F.mse_loss(pred, exp)
+#         self.log('train_loss', loss)
+#         return loss
 
-    def validation_step(self, batch, batch_idx):
-        patch, center, exp = batch
-        pred = self(patch, center)
-        loss = F.mse_loss(pred, exp)
-        self.log('valid_loss', loss)
+#     def validation_step(self, batch, batch_idx):
+#         patch, center, exp = batch
+#         pred = self(patch, center)
+#         loss = F.mse_loss(pred, exp)
+#         self.log('valid_loss', loss)
 
-    def test_step(self, batch, batch_idx):
-        patch, center, exp, mask, label = batch
-        if self.use_mask:
-            pred, mask_pred = self(patch, center)
-        else:
-            pred = self(patch, center)
+#     def test_step(self, batch, batch_idx):
+#         patch, center, exp, mask, label = batch
+#         if self.use_mask:
+#             pred, mask_pred = self(patch, center)
+#         else:
+#             pred = self(patch, center)
 
-        loss = F.mse_loss(pred, exp)
-        self.log('test_loss', loss)
+#         loss = F.mse_loss(pred, exp)
+#         self.log('test_loss', loss)
 
-    def configure_optimizers(self):
-        # self.hparams available because we called self.save_hyperparameters()
-        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
-        return optimizer
+#     def configure_optimizers(self):
+#         # self.hparams available because we called self.save_hyperparameters()
+#         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+#         return optimizer
 
-    @staticmethod
-    def add_model_specific_args(parent_parser):
-        parser = ArgumentParser(parents=[parent_parser], add_help=False)
-        parser.add_argument('--learning_rate', type=float, default=0.0001)
-        return parser
+#     @staticmethod
+#     def add_model_specific_args(parent_parser):
+#         parser = ArgumentParser(parents=[parent_parser], add_help=False)
+#         parser.add_argument('--learning_rate', type=float, default=0.0001)
+#         return parser
 
 
 class THItoGene(pl.LightningModule):
