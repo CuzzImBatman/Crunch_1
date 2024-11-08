@@ -53,11 +53,12 @@ class DATA_BRAIN(torch.utils.data.Dataset):
 
         self.gene_set = list(gene_list)
 
-        self.log1p_dict= {i: self.sdata_dict[i]['anucleus'].X for i in names}
-        
+        # self.log1p_dict= {i: self.sdata_dict[i]['anucleus'].X for i in names}
+        print(self.train)
         
         center_dict={}
         loc_dict={}
+        log1p_dict={}
         lengths=[]
         for i in names:
             regions = regionprops(self.sdata_dict[i]['HE_nuc_original'][0, :, :].to_numpy())
@@ -66,25 +67,32 @@ class DATA_BRAIN(torch.utils.data.Dataset):
             train_length= len( self.sdata_dict[i]['anucleus'].layers['counts'])
             
             partial_train_length=int(train_length*0.9)
-            lengths.append(partial_train_length)
             split_train_binary=[1] * partial_train_length + [0] * (train_length-partial_train_length)
             # split_train_binary=[1] * 62000 + [0] * (train_length-62000)
             random.shuffle(split_train_binary)
             
+            if self.train and os.path.exists(f'{i}_train.pkl')==False:
+                with open(f'{i}_train.pkl', 'wb') as f:  # Python 3: open(..., 'wb')
+                    pickle.dump(split_train_binary, f)
+            elif os.path.exists(f'{i}_train.pkl')==True:
+                with open(f'{i}_train.pkl','rb') as f:  # Python 3: open(..., 'rb')
+                    split_train_binary = pickle.load(f)
+                    
+        
+            if self.train:
+                log1p_dict[i]=self.sdata_dict[i]['anucleus'].X[np.array(split_train_binary)==1]
+                lengths.append(partial_train_length)
+            else:
+                log1p_dict[i]=self.sdata_dict[i]['anucleus'].X[np.array(split_train_binary)==0]
+                lengths.append(train_length-partial_train_length)
+            
             cell_id_train = self.sdata_dict[i]['cell_id-group'].obs[self.sdata_dict[i]['cell_id-group'].obs['group'] == 'train']['cell_id'].to_numpy()
             cell_id_train = list(set(cell_id_train).intersection(set(self.sdata_dict[i]['anucleus'].obs['cell_id'].unique())))
 
-            ## Get y from the anucleus data
-            ground_truth = self.sdata_dict[i]['anucleus'].layers['counts'][self.sdata_dict[i]['anucleus'].obs['cell_id'].isin(cell_id_train),:]
-            
+            # ground_truth = self.sdata_dict[i]['anucleus'].layers['counts'][self.sdata_dict[i]['anucleus'].obs['cell_id'].isin(cell_id_train),:]
             
             print(len(split_train_binary),train_length,int(train_length*0.9))
-            with open('i.pkl', 'wb') as f:  # Python 3: open(..., 'wb')
-                pickle.dump(split_train_binary, f)
-
-            # Getting back the objects:
-            # with open('objs.pkl') as f:  # Python 3: open(..., 'rb')
-            #     obj0, obj1, obj2 = pickle.load(f)
+            
             check_bin=0
             for props in tqdm(regions):
                 cell_id= props.label
@@ -92,7 +100,8 @@ class DATA_BRAIN(torch.utils.data.Dataset):
                 #     continue
                 if check_bin >=len(split_train_binary):
                     break
-                if split_train_binary[check_bin] ==0:
+                if (split_train_binary[check_bin] ==0 and self.train) or\
+                    (split_train_binary[check_bin] ==1 and self.train==False):
                     check_bin+=1
                     continue
                 
@@ -105,8 +114,10 @@ class DATA_BRAIN(torch.utils.data.Dataset):
             center_dict[i]=center_list
             loc_dict[i]=cell_id_list
             
+        self.log1p_dict=log1p_dict
         self.lengths=lengths
         self.cumlen = np.cumsum(self.lengths)
+       
         self.center_dict = center_dict
         self.loc_dict = loc_dict
         
@@ -170,7 +181,7 @@ class DATA_BRAIN(torch.utils.data.Dataset):
 
         else:
             item["image"] = patch
-            item["position"] = loc
+            item["position"] = torch.Tensor(center)
             item["expression"] = exp
             item["center"] = torch.Tensor(center)
             return item

@@ -11,7 +11,7 @@ from utils import AvgMeter, get_lr
 def generate_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--batch_size', type=int, default=256, help='')
-    parser.add_argument('--max_epochs', type=int, default=90, help='')
+    parser.add_argument('--max_epochs', type=int, default=1, help='')#90 
     parser.add_argument('--temperature', type=float, default=1., help='temperature')
     parser.add_argument('--fold', type=int, default=0, help='fold')
     parser.add_argument('--dim', type=int, default=460, help='spot_embedding dimension (# HVGs)')  # 171, 785, 685
@@ -47,10 +47,9 @@ def load_data(args):
         print(f'load dataset: {args.dataset}')
         train_dataset = DATA_BRAIN(train=True, fold=args.fold)
         train_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
-        # test_dataset = DATA_BRAIN(train=False, fold=args.fold)
-        return train_dataLoader
-
-        # return train_dataLoader, test_dataset
+        test_dataset = DATA_BRAIN(train=False, fold=args.fold)
+        # return train_dataLoader
+        return train_dataLoader, test_dataset
     elif args.dataset == 'cscc':
         print(f'load dataset: {args.dataset}')
         train_dataset = SKIN(train=True, fold=args.fold)
@@ -88,47 +87,47 @@ def load_data(args):
 
 def save_model(args, model, test_dataset=None, examples=[]):
     if args.dataset != '10x':
-        os.makedirs(f"./model_result/{args.dataset}/{test_dataset.id2name[0]}", exist_ok=True)
+        os.makedirs(f"./model_result/{args.dataset}", exist_ok=True)
         torch.save(model.state_dict(),
-                   f"./model_result/{args.dataset}/{test_dataset.id2name[0]}/best_{args.fold}.pt")
+                   f"./model_result/{args.dataset}//best_{args.fold}.pt")
     else:
-        os.makedirs(f"./model_result/{args.dataset}/{examples[args.fold]}", exist_ok=True)
+        os.makedirs(f"./model_result/{args.dataset}", exist_ok=True)
         torch.save(model.state_dict(),
-                   f"./model_result/{args.dataset}/{examples[args.fold]}/best_{args.fold}.pt")
+                   f"./model_result/{args.dataset}/best_{args.fold}.pt")
 
 
 def main():
     args = generate_args()
-    for i in range(32):  # 30,32   27
-        args.fold = i
-        print("当前fold:", args.fold)
-        if args.dataset == '10x':
-            train_dataLoader, examples = load_data(args)
-        else:
-            train_dataLoader = load_data(args)
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        model = mclSTExp_Attention(encoder_name=args.encoder_name,
-                                   spot_dim=args.dim,
-                                   temperature=args.temperature,
-                                   image_dim=args.image_embedding_dim,
-                                   projection_dim=args.projection_dim,
-                                   heads_num=args.heads_num,
-                                   heads_dim=args.heads_dim,
-                                   head_layers=args.heads_layers,
-                                   dropout=args.dropout)
-        model.to(device)
-        optimizer = torch.optim.Adam(
-            model.parameters(), lr=1e-4, weight_decay=1e-3
-        )
-        for epoch in range(args.max_epochs):
-            model.train()
-            train(model, train_dataLoader, optimizer, epoch)
+    
+    args.fold = 0
+    print("当前fold:", args.fold)
+    if args.dataset == '10x':
+        train_dataLoader, examples = load_data(args)
+    else:
+        train_dataLoader,test_dataLoader = load_data(args)
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    model = mclSTExp_Attention(encoder_name=args.encoder_name,
+                                spot_dim=args.dim,
+                                temperature=args.temperature,
+                                image_dim=args.image_embedding_dim,
+                                projection_dim=args.projection_dim,
+                                heads_num=args.heads_num,
+                                heads_dim=args.heads_dim,
+                                head_layers=args.heads_layers,
+                                dropout=args.dropout)
+    model.to(device)
+    optimizer = torch.optim.Adam(
+        model.parameters(), lr=1e-4, weight_decay=1e-3
+    )
+    for epoch in range(args.max_epochs):
+        model.train()
+        train(model, train_dataLoader, optimizer, epoch)
 
-        if args.dataset == '10x':
-            save_model(args, model, examples=examples)
-        else:
-            save_model(args, model, test_dataset=test_dataset)
-        print("Saved Model")
+    if args.dataset == '10x':
+        save_model(args, model, examples=examples)
+    else:
+        save_model(args, model)
+    print("Saved Model")
 
 
 if __name__ == '__main__':
