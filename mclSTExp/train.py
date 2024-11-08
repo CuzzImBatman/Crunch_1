@@ -11,18 +11,21 @@ from utils import AvgMeter, get_lr
 def generate_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--batch_size', type=int, default=256, help='')
-    parser.add_argument('--max_epochs', type=int, default=1, help='')#90 
+    parser.add_argument('--max_epochs', type=int, default=90, help='')#90 
     parser.add_argument('--temperature', type=float, default=1., help='temperature')
     parser.add_argument('--fold', type=int, default=0, help='fold')
-    parser.add_argument('--dim', type=int, default=460, help='spot_embedding dimension (# HVGs)')  # 171, 785, 685
+    parser.add_argument('--dim', type=int, default=460, help='spot_embedding dimension (# HVGs)')  
     parser.add_argument('--image_embedding_dim', type=int, default=1024, help='image_embedding dimension')
     parser.add_argument('--projection_dim', type=int, default=256, help='projection_dim ')
     parser.add_argument('--heads_num', type=int, default=8, help='attention heads num')
     parser.add_argument('--heads_dim', type=int, default=64, help='attention heads dim')
     parser.add_argument('--heads_layers', type=int, default=2, help='attention heads layer num')
     parser.add_argument('--dropout', type=float, default=0., help='dropout')
-    parser.add_argument('--dataset', type=str, default='her2st', help='dataset')  # her2st cscc 10x
+    parser.add_argument('--dataset', type=str, default='crunch', help='dataset')  
     parser.add_argument('--encoder_name', type=str, default='densenet121', help='image encoder')
+    parser.add_argument('--path_save', type=str, default='.', help='model saved path')
+    parser.add_argument('--resume', type=str, default=False, help='resume training')
+
     args = parser.parse_args()
     return args
 
@@ -43,68 +46,47 @@ def train(model, train_dataLoader, optimizer, epoch):
 
 
 def load_data(args):
-    if args.dataset == 'her2st':
+    
         print(f'load dataset: {args.dataset}')
         train_dataset = DATA_BRAIN(train=True, fold=args.fold)
         train_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
         test_dataset = DATA_BRAIN(train=False, fold=args.fold)
         # return train_dataLoader
         return train_dataLoader, test_dataset
-    elif args.dataset == 'cscc':
-        print(f'load dataset: {args.dataset}')
-        train_dataset = SKIN(train=True, fold=args.fold)
-        train_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
-        test_dataset = SKIN(train=False, fold=args.fold)
-        return train_dataLoader, test_dataset
-    elif args.dataset == '10x':
-        print(f'load dataset: {args.dataset}')
-        examples1 = ["1142243F", "CID4290", "CID4465", "CID44971", "CID4535", "1160920F"]
-        examples2 = ["block1", "block2", "FFPE"]
-        examples = examples1 + examples2
-        datasets = [
-                       TenxDataset(image_path=f"D:\dataset\Alex_NatGen/{example}/image.tif",
-                                   spatial_pos_path=f"D:\dataset\Alex_NatGen/{example}/spatial/tissue_positions_list.csv",
-                                   reduced_mtx_path=f"./data/preprocessed_expression_matrices/Alex_10x_hvg/{example}/preprocessed_matrix.npy",
-                                   barcode_path=f"D:\dataset\Alex_NatGen/{example}/filtered_count_matrix/barcodes.tsv.gz")
-                       for example in examples1
-                   ] + [
-                       TenxDataset(image_path=rf"D:\dataset\10xGenomics/{example}/image.tif",
-                                   spatial_pos_path=rf"D:\dataset\10xGenomics/{example}/spatial/tissue_positions_list.csv",
-                                   reduced_mtx_path=f"./data/preprocessed_expression_matrices/Alex_10x_hvg/{example}/preprocessed_matrix.npy",
 
-                                   barcode_path=rf"D:\dataset\10xGenomics/{example}/filtered_feature_bc_matrix/barcodes.tsv.gz")
-                       for example in examples2
-                   ]
-
-        datasets.pop(args.fold)
-        print("Test name: ", examples[args.fold], "Test fold: ", args.fold)
-
-        train_dataset = torch.utils.data.ConcatDataset(datasets)
-        train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
-
-        return train_loader, examples
 
 
 def save_model(args, model, test_dataset=None, examples=[]):
-    if args.dataset != '10x':
-        os.makedirs(f"./model_result/{args.dataset}", exist_ok=True)
+  
+        os.makedirs(f"{args.path_save}/model_result/{args.dataset}", exist_ok=True)
         torch.save(model.state_dict(),
-                   f"./model_result/{args.dataset}//best_{args.fold}.pt")
-    else:
-        os.makedirs(f"./model_result/{args.dataset}", exist_ok=True)
-        torch.save(model.state_dict(),
-                   f"./model_result/{args.dataset}/best_{args.fold}.pt")
+                   f"{args.path_save}/model_result/{args.dataset}/best_{args.fold}.pt")
 
 
+def save_checkpoint(epoch, model, optimizer, args, filename="checkpoint.pth.tar"):
+    checkpoint = {
+        'epoch': epoch,
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
+        'args': args
+    }
+    torch.save(checkpoint, filename)
+    print(f"Checkpoint saved at epoch {epoch}")
+
+def load_checkpoint(filename, model, optimizer):
+    checkpoint = torch.load(filename)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    epoch = checkpoint['epoch']
+    args = checkpoint['args']
+    print(f"Checkpoint loaded from epoch {epoch}")
+    return epoch + 1, args
 def main():
     args = generate_args()
     
     args.fold = 0
-    print("当前fold:", args.fold)
-    if args.dataset == '10x':
-        train_dataLoader, examples = load_data(args)
-    else:
-        train_dataLoader,test_dataLoader = load_data(args)
+    
+    train_dataLoader,test_dataLoader = load_data(args)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model = mclSTExp_Attention(encoder_name=args.encoder_name,
                                 spot_dim=args.dim,
@@ -119,14 +101,23 @@ def main():
     optimizer = torch.optim.Adam(
         model.parameters(), lr=1e-4, weight_decay=1e-3
     )
-    for epoch in range(args.max_epochs):
+    if args.resume and os.path.isfile(args.resume):
+        start_epoch, args = load_checkpoint(args.resume, model, optimizer)
+    
+    # Training loop
+    for epoch in range(start_epoch, args.max_epochs):
         model.train()
         train(model, train_dataLoader, optimizer, epoch)
+        
+        # Save checkpoint after each epoch
+        checkpoint_filename = f"checkpoint_epoch_{epoch}.pth.tar"
+        save_checkpoint(epoch, model, optimizer, args, filename=checkpoint_filename)
+    # for epoch in range(args.max_epochs):
+    #     model.train()
+    #     train(model, train_dataLoader, optimizer, epoch)
 
-    if args.dataset == '10x':
-        save_model(args, model, examples=examples)
-    else:
-        save_model(args, model)
+    
+    save_model(args, model)
     print("Saved Model")
 
 
