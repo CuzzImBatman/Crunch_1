@@ -1,7 +1,7 @@
 import argparse
 import torch
 import os
-from dataset import SKIN, HERDataset, TenxDataset,DATA_BRAIN
+from dataset import DATA_BRAIN
 from model import mclSTExp_Attention
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -28,6 +28,35 @@ def generate_args():
 
     args = parser.parse_args()
     return args
+import numpy as np
+from torch.utils.data import Sampler
+from torch.utils.data import Dataset, DataLoader
+from collections import defaultdict
+import random
+
+
+class CustomBatchSampler:
+    def __init__(self, dataset, shuffle=True):
+        # Group items by ID
+        self.groups = defaultdict(list)
+        for idx, item in enumerate(dataset):
+            self.groups[item['id']].append(idx)
+        
+        # Create a list of groups (each group corresponds to one unique ID)
+        self.group_keys = list(self.groups.keys())
+        self.shuffle = shuffle
+
+    def __iter__(self):
+        if self.shuffle:
+            random.shuffle(self.group_keys)  # Shuffle the groups by ID
+
+        # Yield batches of indices corresponding to each ID
+        for key in self.group_keys:
+            yield self.groups[key]
+
+    def __len__(self):
+        return len(self.group_keys)
+# Create a simple dataset
 
 
 def train(model, train_dataLoader, optimizer, epoch):
@@ -35,7 +64,7 @@ def train(model, train_dataLoader, optimizer, epoch):
     tqdm_train = tqdm(train_dataLoader, total=len(train_dataLoader))
     for batch in tqdm_train:
         batch = {k: v.cuda() for k, v in batch.items() if
-                 k == "image" or k == "expression" or k == "position"}
+                 k == "image" or k == "expression" or k == "position" or k == "id"}
         loss = model(batch)
         optimizer.zero_grad()
         loss.backward()
@@ -101,8 +130,9 @@ def main():
     optimizer = torch.optim.Adam(
         model.parameters(), lr=1e-4, weight_decay=1e-3
     )
+    start_epoch = 0
     if args.resume and os.path.isfile(args.resume):
-        start_epoch, args = load_checkpoint(args.resume, model, optimizer)
+        start_epoch, args = load_checkpoint(args, model, optimizer)
     
     # Training loop
     for epoch in range(start_epoch, args.max_epochs):
