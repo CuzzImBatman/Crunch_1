@@ -1,10 +1,10 @@
 import torch
 import numpy as np
 from torch.optim import Optimizer
-from torch.optim.lr_scheduler import LRScheduler
+from torch.optim.lr_scheduler import _LRScheduler
 
 
-class LR_Scheduler(LRScheduler):
+class LR_Scheduler(_LRScheduler):
     def __init__(self, optimizer:Optimizer, 
                  num_epochs:int, iter_per_epoch:int, warmup_epochs:int,
                  warmup_lr:float, base_lr:float, final_lr:float, 
