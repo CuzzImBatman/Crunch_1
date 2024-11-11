@@ -10,7 +10,7 @@ from utils import AvgMeter, get_lr
 
 def generate_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--batch_size', type=int, default=256, help='')
+    parser.add_argument('--batch_size', type=int, default=1024, help='')
     parser.add_argument('--max_epochs', type=int, default=90, help='')#90 
     parser.add_argument('--temperature', type=float, default=1., help='temperature')
     parser.add_argument('--fold', type=int, default=0, help='fold')
