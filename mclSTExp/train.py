@@ -6,8 +6,8 @@ from model import mclSTExp_Attention
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from utils import AvgMeter, get_lr
-
-
+# import torch.optim.lr_scheduler as lr_scheduler
+from lr_scheduler import LR_Scheduler
 def generate_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--batch_size', type=int, default=1024, help='')
@@ -59,6 +59,8 @@ class CustomBatchSampler:
 # Create a simple dataset
 
 
+
+
 def train(model, train_dataLoader, optimizer, epoch):
     loss_meter = AvgMeter()
     tqdm_train = tqdm(train_dataLoader, total=len(train_dataLoader))
@@ -87,7 +89,7 @@ def load_data(args):
 
 def save_model(args, model, test_dataset=None, examples=[]):
   
-        os.makedirs(f"{args.path_save}/model_result/{args.dataset}", exist_ok=True)
+        
         torch.save(model.state_dict(),
                    f"{args.path_save}/model_result/{args.dataset}/best_{args.fold}.pt")
 
@@ -97,9 +99,11 @@ def save_checkpoint(epoch, model, optimizer, args, filename="checkpoint.pth.tar"
         'epoch': epoch,
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': optimizer.state_dict(),
+        'scheduler': scheduler.state_dict(),
         'args': args
     }
-    torch.save(checkpoint, filename)
+    os.makedirs(f"{args.path_save}/model_result", exist_ok=True)
+    torch.save(checkpoint, f"{args.path_save}/model_result/{filename}")
     print(f"Checkpoint saved at epoch {epoch}")
 
 def load_checkpoint(filename, model, optimizer):
@@ -108,8 +112,12 @@ def load_checkpoint(filename, model, optimizer):
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     epoch = checkpoint['epoch']
     args = checkpoint['args']
+    
     print(f"Checkpoint loaded from epoch {epoch}")
     return epoch + 1, args
+
+# Apply the custom learning rate scheduler
+
 def main():
     args = generate_args()
     
@@ -127,21 +135,36 @@ def main():
                                 head_layers=args.heads_layers,
                                 dropout=args.dropout)
     model.to(device)
-    optimizer = torch.optim.Adam(
-        model.parameters(), lr=1e-4, weight_decay=1e-3
+    optimizer = torch.optim.SGD(
+        model.parameters(), lr=0.05, weight_decay=1e-5
     )
+    scheduler = LR_Scheduler(optimizer=optimizer
+                             ,num_epochs=args.max_epochs
+                             ,base_lr=0.05
+                             ,iter_per_epoch = len(train_dataLoader)
+                             ,warmup_epochs= 20
+                            ,warmup_lr= 0.01
+                            ,final_lr= 0.0001
+                            ,constant_predictor_lr=False
+)
     start_epoch = 0
     if args.resume and os.path.isfile(args.resume):
         start_epoch, args = load_checkpoint(args, model, optimizer)
     
     # Training loop
+    # scheduler = get_scheduler(scheduler_cfg=args.train.scheduler, optimizer=optimizer)
+    # scheduler = lr_scheduler.LambdaLR(
+    # optimizer, lr_lambda=lambda epoch: custom_lr_schedule(epoch, args.max_epochs))
+
     for epoch in range(start_epoch, args.max_epochs):
         model.train()
+        
         train(model, train_dataLoader, optimizer, epoch)
         
         # Save checkpoint after each epoch
         checkpoint_filename = f"checkpoint_epoch_{epoch}.pth.tar"
-        save_checkpoint(epoch, model, optimizer, args, filename=checkpoint_filename)
+        if (epoch+1)%5 ==0:
+            save_checkpoint(epoch, model, optimizer, args, filename=checkpoint_filename)
     # for epoch in range(args.max_epochs):
     #     model.train()
     #     train(model, train_dataLoader, optimizer, epoch)
