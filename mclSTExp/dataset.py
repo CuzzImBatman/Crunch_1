@@ -41,7 +41,7 @@ class DATA_BRAIN(torch.utils.data.Dataset):
         self.norm = norm
 
         
-        names= sample_names[:2]
+        names= sample_names
         # names= sample_names[:1]
         print('Loading sdata...')
         self.sdata_dict = {i: self.get_sdata(i) for i in names}
