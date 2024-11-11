@@ -3,9 +3,12 @@ import torch
 import os
 from dataset import DATA_BRAIN
 from model import mclSTExp_Attention
-from torch.utils.data import DataLoader
+from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 from utils import AvgMeter, get_lr
+from torch.utils.data import Sampler
+from collections import defaultdict
+import random
 # import torch.optim.lr_scheduler as lr_scheduler
 from lr_scheduler import LR_Scheduler
 def generate_args():
@@ -28,35 +31,38 @@ def generate_args():
 
     args = parser.parse_args()
     return args
-import numpy as np
-from torch.utils.data import Sampler
-from torch.utils.data import Dataset, DataLoader
-from collections import defaultdict
-import random
 
 
-class CustomBatchSampler:
+
+class CustomBatchSampler(Sampler):
     def __init__(self, dataset, shuffle=True):
-        # Group items by ID
+        self.dataset = dataset
+        self.shuffle = shuffle
         self.groups = defaultdict(list)
+
+        # Group items by ID
         for idx, item in enumerate(dataset):
             self.groups[item['id']].append(idx)
-        
-        # Create a list of groups (each group corresponds to one unique ID)
-        self.group_keys = list(self.groups.keys())
-        self.shuffle = shuffle
 
     def __iter__(self):
+        group_keys = list(self.groups.keys())
+        
+        # Shuffle group order if shuffle is enabled
         if self.shuffle:
-            random.shuffle(self.group_keys)  # Shuffle the groups by ID
-
-        # Yield batches of indices corresponding to each ID
-        for key in self.group_keys:
-            yield self.groups[key]
+            random.shuffle(group_keys)
+        
+        # For each group ID, shuffle items within the group if shuffle is enabled
+        shuffled_indices = []
+        for key in group_keys:
+            indices = self.groups[key][:]
+            if self.shuffle:
+                random.shuffle(indices)  # Shuffle items within each group ID
+            shuffled_indices.extend(indices)
+        
+        return iter(shuffled_indices)
 
     def __len__(self):
-        return len(self.group_keys)
-# Create a simple dataset
+        return len(self.dataset)
 
 
 
@@ -81,10 +87,14 @@ def load_data(args):
     
         print(f'load dataset: {args.dataset}')
         train_dataset = DATA_BRAIN(train=True, fold=args.fold)
-        train_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
-        test_dataset = DATA_BRAIN(train=False, fold=args.fold)
+        batch_sampler = CustomBatchSampler(train_dataset, shuffle=True)
+
+        train_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=batch_sampler)
+        # test_dataset = DATA_BRAIN(train=False, fold=args.fold)
+        # test_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False)
         # return train_dataLoader
-        return train_dataLoader, test_dataset
+        test_dataLoader=None
+        return train_dataLoader, test_dataLoader
 
 
 
@@ -138,11 +148,11 @@ def main():
                                 dropout=args.dropout)
     model.to(device)
     optimizer = torch.optim.SGD(
-        model.parameters(), lr=0.05, weight_decay=1e-5
+        model.parameters(), lr=0.1, weight_decay=1e-5
     )
     scheduler = LR_Scheduler(optimizer=optimizer
                              ,num_epochs=args.max_epochs
-                             ,base_lr=0.05
+                             ,base_lr=0.1
                              ,iter_per_epoch = len(train_dataLoader)
                              ,warmup_epochs= 20
                             ,warmup_lr= 0.01
