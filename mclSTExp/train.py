@@ -61,7 +61,7 @@ class CustomBatchSampler:
 
 
 
-def train(model, train_dataLoader, optimizer, epoch):
+def train(model, train_dataLoader, optimizer,scheduler, epoch):
     loss_meter = AvgMeter()
     tqdm_train = tqdm(train_dataLoader, total=len(train_dataLoader))
     for batch in tqdm_train:
@@ -70,6 +70,7 @@ def train(model, train_dataLoader, optimizer, epoch):
         loss = model(batch)
         optimizer.zero_grad()
         loss.backward()
+        scheduler.step()
         optimizer.step()
         count = batch["image"].size(0)
         loss_meter.update(loss.item(), count)
@@ -94,7 +95,7 @@ def save_model(args, model, test_dataset=None, examples=[]):
                    f"{args.path_save}/model_result/{args.dataset}/best_{args.fold}.pt")
 
 
-def save_checkpoint(epoch, model, optimizer, args, filename="checkpoint.pth.tar"):
+def save_checkpoint(epoch, model, optimizer,scheduler, args, filename="checkpoint.pth.tar"):
     checkpoint = {
         'epoch': epoch,
         'model_state_dict': model.state_dict(),
@@ -106,13 +107,14 @@ def save_checkpoint(epoch, model, optimizer, args, filename="checkpoint.pth.tar"
     torch.save(checkpoint, f"{args.path_save}/model_result/{filename}")
     print(f"Checkpoint saved at epoch {epoch}")
 
-def load_checkpoint(filename, model, optimizer):
-    checkpoint = torch.load(filename)
+def load_checkpoint(epoch, model, optimizer,scheduler,args):
+    filename=f"checkpoint_epoch_{epoch}.pth.tar"
+    checkpoint = torch.load(f"{args.path_save}/model_result/{filename}")
     model.load_state_dict(checkpoint['model_state_dict'])
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     epoch = checkpoint['epoch']
     args = checkpoint['args']
-    
+    scheduler.load_state_dict(checkpoint['scheduler'])
     print(f"Checkpoint loaded from epoch {epoch}")
     return epoch + 1, args
 
@@ -149,7 +151,7 @@ def main():
 )
     start_epoch = 0
     if args.resume and os.path.isfile(args.resume):
-        start_epoch, args = load_checkpoint(args, model, optimizer)
+        start_epoch, args = load_checkpoint(epoch, model, optimizer,scheduler,args)
     
     # Training loop
     # scheduler = get_scheduler(scheduler_cfg=args.train.scheduler, optimizer=optimizer)
@@ -159,12 +161,12 @@ def main():
     for epoch in range(start_epoch, args.max_epochs):
         model.train()
         
-        train(model, train_dataLoader, optimizer, epoch)
+        train(model, train_dataLoader, optimizer,scheduler , epoch)
         
         # Save checkpoint after each epoch
         checkpoint_filename = f"checkpoint_epoch_{epoch}.pth.tar"
         if (epoch+1)%5 ==0:
-            save_checkpoint(epoch, model, optimizer, args, filename=checkpoint_filename)
+            save_checkpoint(epoch, model, optimizer,scheduler, args, filename=checkpoint_filename)
     # for epoch in range(args.max_epochs):
     #     model.train()
     #     train(model, train_dataLoader, optimizer, epoch)
