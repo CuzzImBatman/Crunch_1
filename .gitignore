@@ -4978,3 +4978,6 @@ mclSTExp/UC7_I_train.pkl
 mclSTExp/UC9_I_train.pkl
 mclSTExp/__pycache__/lr_scheduler.cpython-39.pyc
 basic_EDA.ipynb
+mclSTExp/model_result/mcIstexp/checkpoint_epoch_9.pth.tar
+mclSTExp/checkpoint_epoch_19.pth.tar
+basic_EDA.ipynb
