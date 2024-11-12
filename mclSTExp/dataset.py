@@ -1,6 +1,7 @@
 import torch
 import os
 os.environ["OPENCV_IO_MAX_IMAGE_PIXELS"] = str(pow(2,40))
+CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 import numpy as np
 import torchvision.transforms as transforms
 import glob
@@ -24,7 +25,7 @@ class DATA_BRAIN(torch.utils.data.Dataset):
 
     def __init__(self, train=True, gene_list=None, ds=None, sr=False, aug=False, norm=False, fold=0):
         super(DATA_BRAIN, self).__init__()
-        self.dir = '../data'
+        self.dir = '../../data'
         self.r = 128 // 4
 
         sample_names = ['DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I']
@@ -44,9 +45,27 @@ class DATA_BRAIN(torch.utils.data.Dataset):
         names= sample_names
         # names= sample_names[:1]
         print('Loading sdata...')
-        self.sdata_dict = {i: self.get_sdata(i) for i in names}
-        self.img_dict= {i: self.sdata_dict[i]['HE_original'].to_numpy()  for i in names}
-        gene_list = self.sdata_dict[names[0]]['anucleus'].var['gene_symbols'].values
+        # self.sdata_dict = {i: self.get_sdata(i) for i in names}
+        img_dict={}
+        nuc_img_dict={}
+        cell_id_dict={}
+        anucleus_dict={}
+        
+        
+        for i in names:
+            sdata= self.get_sdata(i)
+            img_dict[i]= sdata['HE_registered'].to_numpy()
+            nuc_img_dict[i]= sdata['HE_nuc_registered'][0, :, :].to_numpy().to_numpy()
+            cell_id_group_dict[i]=sdata['cell_id-group']
+            anucleus_dict[i]= sdata['anucleus']
+            del sdata
+        
+        # self.img_dict= {i: self.sdata_dict[i]['HE_original'].to_numpy()  for i in names}
+        self.img_dict=img_dict
+        self.nuc_img_dict=nuc_img_dict
+        self.cell_id_dict=cell_id_dict
+        self.anucleus_dict=anucleus_dict
+        gene_list = self.anucleus_dict[names[0]].var['gene_symbols'].values
         
         print('Loading metadata...')
         # self.meta_dict = {i: self.get_meta(i) for i in names}
@@ -61,10 +80,10 @@ class DATA_BRAIN(torch.utils.data.Dataset):
         log1p_dict={}
         lengths=[]
         for i in names:
-            regions = regionprops(self.sdata_dict[i]['HE_nuc_original'][0, :, :].to_numpy())
+            regions = regionprops(self.nuc_img_dict)
             center_list=[]
             cell_id_list=[]
-            train_length= len( self.sdata_dict[i]['anucleus'].layers['counts'])
+            train_length= len( self.anucleus_dict[i].layers['counts'])
             
             partial_train_length=int(train_length*0.9)
             split_train_binary=[1] * partial_train_length + [0] * (train_length-partial_train_length)
@@ -80,14 +99,14 @@ class DATA_BRAIN(torch.utils.data.Dataset):
                     
         
             if self.train:
-                log1p_dict[i]=self.sdata_dict[i]['anucleus'].X[np.array(split_train_binary)==1]
+                log1p_dict[i]=self.anucleus_dict[i].X[np.array(split_train_binary)==1]
                 lengths.append(partial_train_length)
             else:
-                log1p_dict[i]=self.sdata_dict[i]['anucleus'].X[np.array(split_train_binary)==0]
+                log1p_dict[i]=self.anucleus_dict[i].X[np.array(split_train_binary)==0]
                 lengths.append(train_length-partial_train_length)
             
-            cell_id_train = self.sdata_dict[i]['cell_id-group'].obs[self.sdata_dict[i]['cell_id-group'].obs['group'] == 'train']['cell_id'].to_numpy()
-            cell_id_train = list(set(cell_id_train).intersection(set(self.sdata_dict[i]['anucleus'].obs['cell_id'].unique())))
+            cell_id_train = self.cell_id_group[i].obs[self.cell_id_group[i].obs['group'] == 'train']['cell_id'].to_numpy()
+            cell_id_train = list(set(cell_id_train).intersection(set(self.anucleus_dict[i].obs['cell_id'].unique())))
 
             # ground_truth = self.sdata_dict[i]['anucleus'].layers['counts'][self.sdata_dict[i]['anucleus'].obs['cell_id'].isin(cell_id_train),:]
             
@@ -190,9 +209,11 @@ class DATA_BRAIN(torch.utils.data.Dataset):
 
     def __len__(self):
         return self.cumlen[-1]
-
+  
+        
     def get_sdata(self, name):
         path= f'{self.dir}/{name}.zarr'
+        # path = os.path.join()
         # print(path)
         sdata = sd.read_zarr(path)
         return sdata

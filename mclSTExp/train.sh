@@ -1,7 +1,7 @@
 pip install --upgrade crunch-cli
 git clone https://github.com/CuzzImBatman/Crunch_1.git
 cd ./Crunch_1/
-crunch setup --notebook --size default broad-1 test --token 2BwKdHlYLLb3FKFYqvyXG9bgZMIonFH52Iu6XQDkIHIb7SvUXWdn6ipSgypRNrqb
+crunch setup --notebook --size large broad-1 test --token 2BwKdHlYLLb3FKFYqvyXG9bgZMIonFH52Iu6XQDkIHIb7SvUXWdn6ipSgypRNrqb
 pip install -r requirements.txt
 pip install scprep
 pip install timm
