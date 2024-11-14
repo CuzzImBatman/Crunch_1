@@ -1,7 +1,7 @@
 import argparse
 import torch
 import os
-from dataset import DATA_BRAIN
+from dataset import DATA_BRAIN,Dummy
 from model import mclSTExp_Attention
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
@@ -13,8 +13,8 @@ import random
 from lr_scheduler import LR_Scheduler
 def generate_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--batch_size', type=int, default=1024, help='')
-    parser.add_argument('--max_epochs', type=int, default=90, help='')#90 
+    parser.add_argument('--batch_size', type=int, default=512, help='')
+    parser.add_argument('--max_epochs', type=int, default=120, help='')#90 
     parser.add_argument('--temperature', type=float, default=1., help='temperature')
     parser.add_argument('--fold', type=int, default=0, help='fold')
     parser.add_argument('--dim', type=int, default=460, help='spot_embedding dimension (# HVGs)')  
@@ -28,6 +28,7 @@ def generate_args():
     parser.add_argument('--encoder_name', type=str, default='densenet121', help='image encoder')
     parser.add_argument('--path_save', type=str, default='.', help='model saved path')
     parser.add_argument('--resume', type=str, default=False, help='resume training')
+    parser.add_argument('--half_patch_size', type=int, default=32, help='resume training')
 
     args = parser.parse_args()
     return args
@@ -86,10 +87,11 @@ def train(model, train_dataLoader, optimizer,scheduler, epoch):
 def load_data(args):
     
         print(f'load dataset: {args.dataset}')
-        train_dataset = DATA_BRAIN(train=True, fold=args.fold)
-        batch_sampler = CustomBatchSampler(train_dataset, shuffle=True)
-
-        train_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=batch_sampler)
+        train_dataset = DATA_BRAIN(train=True,r=args.half_patch_size, fold=args.fold)
+        dummy_dataset= Dummy(train=True)
+        batch_sampler = CustomBatchSampler(dummy_dataset, shuffle=True)
+        print('hellooooooooooooooooooooooooooo')
+        train_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=batch_sampler,num_workers=3,pin_memory=True)
         # test_dataset = DATA_BRAIN(train=False, fold=args.fold)
         # test_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False)
         # return train_dataLoader
@@ -113,13 +115,15 @@ def save_checkpoint(epoch, model, optimizer,scheduler, args, filename="checkpoin
         'scheduler': scheduler.state_dict(),
         'args': args
     }
-    os.makedirs(f"{args.path_save}/model_result", exist_ok=True)
-    torch.save(checkpoint, f"{args.path_save}/model_result/{filename}")
+    dir=f"{args.path_save}/model_result/{args.half_patch_size}"
+    os.makedirs(dir, exist_ok=True)
+    torch.save(checkpoint, f"{dir}/{filename}")
     print(f"Checkpoint saved at epoch {epoch}")
 
 def load_checkpoint(epoch, model, optimizer,scheduler,args):
     filename=f"checkpoint_epoch_{epoch}.pth.tar"
-    checkpoint = torch.load(f"{args.path_save}/model_result/{filename}")
+    dir=f"{args.path_save}/model_result/{args.half_patch_size}"
+    checkpoint = torch.load(f"{dir}/{filename}")
     model.load_state_dict(checkpoint['model_state_dict'])
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     epoch = checkpoint['epoch']
@@ -147,16 +151,17 @@ def main():
                                 head_layers=args.heads_layers,
                                 dropout=args.dropout)
     model.to(device)
+    ratio = 512/args.batch_size
     optimizer = torch.optim.SGD(
-        model.parameters(), lr=0.1, weight_decay=1e-5
+        model.parameters(), lr=0.15*ratio, weight_decay=1e-5
     )
     scheduler = LR_Scheduler(optimizer=optimizer
                              ,num_epochs=args.max_epochs
-                             ,base_lr=0.1
+                             ,base_lr=0.15*ratio
                              ,iter_per_epoch = len(train_dataLoader)
                              ,warmup_epochs= 20
-                            ,warmup_lr= 0.01
-                            ,final_lr= 0.0001
+                            ,warmup_lr= 0.03*ratio
+                            ,final_lr= 0.0005
                             ,constant_predictor_lr=False
 )
     start_epoch = 0
@@ -182,7 +187,7 @@ def main():
     #     train(model, train_dataLoader, optimizer, epoch)
 
     
-    save_model(args, model)
+    # save_model(args, model)
     print("Saved Model")
 
 

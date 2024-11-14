@@ -19,14 +19,16 @@ import random
 import pickle
 from skimage.measure import regionprops
 from tqdm import tqdm
+import gc
 
 
 class DATA_BRAIN(torch.utils.data.Dataset):
 
-    def __init__(self, train=True, gene_list=None, ds=None, sr=False, aug=False, norm=False, fold=0):
+    def __init__(self, train=True, gene_list=None, ds=None,r=32 ,sr=False, aug=False, norm=False, fold=0):
         super(DATA_BRAIN, self).__init__()
-        self.dir = '../../data'
-        self.r = 128 // 4
+        self.dir = '../data'
+        self.r=r
+        # self.r = 200 // 4
 
         sample_names = ['DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I']
 
@@ -48,22 +50,23 @@ class DATA_BRAIN(torch.utils.data.Dataset):
         # self.sdata_dict = {i: self.get_sdata(i) for i in names}
         img_dict={}
         nuc_img_dict={}
-        cell_id_dict={}
         anucleus_dict={}
-        
+        cell_id_group_dict={}
         
         for i in names:
             sdata= self.get_sdata(i)
             img_dict[i]= sdata['HE_registered'].to_numpy()
-            nuc_img_dict[i]= sdata['HE_nuc_registered'][0, :, :].to_numpy().to_numpy()
+            nuc_img_dict[i]=sdata['HE_nuc_registered']
             cell_id_group_dict[i]=sdata['cell_id-group']
             anucleus_dict[i]= sdata['anucleus']
             del sdata
+            gc.collect()
+
         
         # self.img_dict= {i: self.sdata_dict[i]['HE_original'].to_numpy()  for i in names}
         self.img_dict=img_dict
-        self.nuc_img_dict=nuc_img_dict
-        self.cell_id_dict=cell_id_dict
+        # self.nuc_img_dict=nuc_img_dict
+        self.cell_id_group_dict=cell_id_group_dict
         self.anucleus_dict=anucleus_dict
         gene_list = self.anucleus_dict[names[0]].var['gene_symbols'].values
         
@@ -80,7 +83,7 @@ class DATA_BRAIN(torch.utils.data.Dataset):
         log1p_dict={}
         lengths=[]
         for i in names:
-            regions = regionprops(self.nuc_img_dict)
+            # regions = nuc_img_dict[i]
             center_list=[]
             cell_id_list=[]
             train_length= len( self.anucleus_dict[i].layers['counts'])
@@ -90,11 +93,13 @@ class DATA_BRAIN(torch.utils.data.Dataset):
             # split_train_binary=[1] * 62000 + [0] * (train_length-62000)
             random.shuffle(split_train_binary)
             
-            if self.train and os.path.exists(f'{i}_train.pkl')==False:
-                with open(f'{i}_train.pkl', 'wb') as f:  # Python 3: open(..., 'wb')
+            split_path= "./train_split"
+            os.makedirs(f"{split_path}", exist_ok=True)
+            if self.train and os.path.exists(f'{split_path}/{i}_train.pkl')==False:
+                with open(f'{split_path}/{i}_train.pkl', 'wb') as f:  # Python 3: open(..., 'wb')
                     pickle.dump(split_train_binary, f)
-            elif os.path.exists(f'{i}_train.pkl')==True:
-                with open(f'{i}_train.pkl','rb') as f:  # Python 3: open(..., 'rb')
+            elif os.path.exists(f'{split_path}/{i}_train.pkl')==True:
+                with open(f'{split_path}/{i}_train.pkl','rb') as f:  # Python 3: open(..., 'rb')
                     split_train_binary = pickle.load(f)
                     
         
@@ -105,7 +110,7 @@ class DATA_BRAIN(torch.utils.data.Dataset):
                 log1p_dict[i]=self.anucleus_dict[i].X[np.array(split_train_binary)==0]
                 lengths.append(train_length-partial_train_length)
             
-            cell_id_train = self.cell_id_group[i].obs[self.cell_id_group[i].obs['group'] == 'train']['cell_id'].to_numpy()
+            cell_id_train = self.cell_id_group_dict[i].obs[self.cell_id_group_dict[i].obs['group'] == 'train']['cell_id'].to_numpy()
             cell_id_train = list(set(cell_id_train).intersection(set(self.anucleus_dict[i].obs['cell_id'].unique())))
 
             # ground_truth = self.sdata_dict[i]['anucleus'].layers['counts'][self.sdata_dict[i]['anucleus'].obs['cell_id'].isin(cell_id_train),:]
@@ -113,7 +118,7 @@ class DATA_BRAIN(torch.utils.data.Dataset):
             print(len(split_train_binary),train_length,int(train_length*0.9))
             
             check_bin=0
-            for props in tqdm(regions):
+            for props in tqdm( regionprops(nuc_img_dict[i][0, :, :].to_numpy()) ):
                 cell_id= props.label
                 # if cell_id >= len( self.sdata_dict[i]['anucleus'].layers['counts']):
                 #     continue
@@ -129,10 +134,11 @@ class DATA_BRAIN(torch.utils.data.Dataset):
                 centroid = props.centroid
                 center_list.append([int(centroid[1]), int(centroid[0])])
                 cell_id_list.append(int(cell_id))
+            
             # print(len(center_list))
             center_dict[i]=center_list
             loc_dict[i]=cell_id_list
-            
+        del nuc_img_dict    
         self.log1p_dict=log1p_dict
         self.lengths=lengths
         self.cumlen = np.cumsum(self.lengths)
@@ -166,28 +172,34 @@ class DATA_BRAIN(torch.utils.data.Dataset):
         minc, maxc = x_center - self.r, x_center + self.r
 
         # Ensure boundaries are within the image dimensions
-        # pad_top = max(0, -minr)
-        # minr = max(0, minr)
+            
+        if (minr <0) or (minc <0) or (maxr <0) or (maxc <0):
+            pad_top = max(0, -minr)
+            minr = max(0, minr)
 
-        # pad_bottom = max(0, maxr - im.shape[1])
-        # maxr = min(maxr, im.shape[1])
+            pad_bottom = max(0, maxr - im.shape[1])
+            maxr = min(maxr, im.shape[1])
 
-        # pad_left = max(0, -minc)
-        # minc = max(0, minc)
+            pad_left = max(0, -minc)
+            minc = max(0, minc)
 
-        # pad_right = max(0, maxc - im.shape[2])
-        # maxc = min(maxc, im.shape[2])
+            pad_right = max(0, maxc - im.shape[2])
+            maxc = min(maxc, im.shape[2])
 
-        # # Crop and pad the image if needed
-        # if pad_top + pad_bottom + pad_left + pad_right > 0:
-        #     patch = np.pad(im[:, minr:maxr, minc:maxc],
-        #                 ((0, 0), (pad_top, pad_bottom), (pad_left, pad_right)),
-        #                 mode='constant', constant_values=0)
-        # else:
-        #     patch = im[:, minr:maxr, minc:maxc]
-        patch = im[:, minr:maxr, minc:maxc]
-        patch = Image.fromarray(np.transpose(patch,(2,1,0)))
+        # Crop and pad the image if needed
         
+            patch = np.pad(im[:, minr:maxr, minc:maxc],
+                        ((0, 0), (pad_top, pad_bottom), (pad_left, pad_right)),
+                        mode='constant', constant_values=0)
+        else:
+            patch = im[:, minr:maxr, minc:maxc]
+        # patch = im[:, minr:maxr, minc:maxc]
+        
+        patch = Image.fromarray(np.transpose(patch,(2,1,0)))
+        if patch.size !=(self.r*2,self.r*2):
+            patch=patch.resize((self.r*2,self.r*2))
+        # except:
+        #     print( minr,maxr,minc,maxc, im.shape)
         if self.train:
             patch = self.transforms(patch)
         else:
@@ -218,9 +230,33 @@ class DATA_BRAIN(torch.utils.data.Dataset):
         sdata = sd.read_zarr(path)
         return sdata
 
-    # def get_meta(self, name, gene_list=None):
-    #     meta = pd.read_csv('./data/10X/151507/10X_Visium_151507_meta.csv', index_col=0)
-    #     return meta
+class Dummy(torch.utils.data.Dataset):
+    def __init__(self, train=True):
+        split_path= "./train_split"
+        sample_names = ['DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I']
+        names= sample_names
+        lenghts=[]
+        for i in names:
+            split_path= "./train_split"
+            split_train_binary=[]
+            with open(f'{split_path}/{i}_train.pkl','rb') as f:  # Python 3: open(..., 'rb')
+                split_train_binary = pickle.load(f)
+            if train:
+                lenghts.append(int(len(split_train_binary)*0.9))
+            else:
+                lenghts.append(len(split_train_binary)-int(len(split_train_binary)*0.9))
+        self.cumlen = np.cumsum( lenghts)
 
-
-
+    def __getitem__(self, index):
+        i = 0
+        item = {}
+        # print(index)
+        while index >= self.cumlen[i]:
+            i += 1
+        idx = index
+        if i > 0:
+            idx = index - self.cumlen[i - 1]
+        item['id']=i-1
+        return item
+    def __len__(self):
+        return self.cumlen[-1]
