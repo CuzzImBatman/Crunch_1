@@ -1,0 +1,1 @@
+python3 test.py   --test_model 100-89 
