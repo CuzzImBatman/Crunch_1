@@ -28,8 +28,8 @@ def generate_args():
     parser.add_argument('--encoder_name', type=str, default='densenet121', help='image encoder')
     parser.add_argument('--path_save', type=str, default='.', help='model saved path')
     parser.add_argument('--resume', type=str, default=False, help='resume training')
-    parser.add_argument('--half_patch_size', type=int, default=32, help='resume training')
-
+    parser.add_argument('--patch_size', type=int, default=128, help='patch_size')
+    parser.add_argument('--test_model', type=str, default='64-99', help='patch_size(n)-epoch(e)')
     args = parser.parse_args()
     return args
 
@@ -87,10 +87,10 @@ def train(model, train_dataLoader, optimizer,scheduler, epoch):
 def load_data(args):
     
         print(f'load dataset: {args.dataset}')
-        train_dataset = DATA_BRAIN(train=True,r=args.half_patch_size, fold=args.fold)
+        train_dataset = DATA_BRAIN(train=True,r=int(args.patch_size/2), fold=args.fold)
         dummy_dataset= Dummy(train=True)
         batch_sampler = CustomBatchSampler(dummy_dataset, shuffle=True)
-        print('hellooooooooooooooooooooooooooo')
+        # print('hellooooooooooooooooooooooooooo')
         train_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=batch_sampler,num_workers=3,pin_memory=True)
         # test_dataset = DATA_BRAIN(train=False, fold=args.fold)
         # test_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False)
@@ -115,14 +115,14 @@ def save_checkpoint(epoch, model, optimizer,scheduler, args, filename="checkpoin
         'scheduler': scheduler.state_dict(),
         'args': args
     }
-    dir=f"{args.path_save}/model_result/{args.half_patch_size}"
+    dir=f"{args.path_save}/model_result/{args.patch_size}"
     os.makedirs(dir, exist_ok=True)
     torch.save(checkpoint, f"{dir}/{filename}")
     print(f"Checkpoint saved at epoch {epoch}")
 
 def load_checkpoint(epoch, model, optimizer,scheduler,args):
     filename=f"checkpoint_epoch_{epoch}.pth.tar"
-    dir=f"{args.path_save}/model_result/{args.half_patch_size}"
+    dir=f"{args.path_save}/model_result/{args.patch_size}"
     checkpoint = torch.load(f"{dir}/{filename}")
     model.load_state_dict(checkpoint['model_state_dict'])
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
@@ -153,14 +153,14 @@ def main():
     model.to(device)
     ratio = 512/args.batch_size
     optimizer = torch.optim.SGD(
-        model.parameters(), lr=0.15*ratio, weight_decay=1e-5
+        model.parameters(), lr=0.2*ratio, weight_decay=1e-5
     )
     scheduler = LR_Scheduler(optimizer=optimizer
                              ,num_epochs=args.max_epochs
-                             ,base_lr=0.15*ratio
+                             ,base_lr=0.2*ratio
                              ,iter_per_epoch = len(train_dataLoader)
                              ,warmup_epochs= 20
-                            ,warmup_lr= 0.03*ratio
+                            ,warmup_lr= 0.1*ratio
                             ,final_lr= 0.0005
                             ,constant_predictor_lr=False
 )

@@ -1,1 +1,3 @@
-python3 train.py --batch_size 1024
+# sleep 540
+
+python3 train.py --batch_size 512

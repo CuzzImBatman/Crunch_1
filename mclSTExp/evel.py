@@ -17,7 +17,7 @@ model_path=f"./model_result/mcistexp/best_0.pt"
 NAMES = ['DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_NI']
 SAVE_EMBEDDINGS = True
 
-def build_loaders_inference():
+def build_loaders_inference(r = 64):
     
     train_dataset= DATA_BRAIN(train=True)
     test_dataset = DATA_BRAIN(train=False)
@@ -31,9 +31,10 @@ def build_loaders_inference():
     return train_loader,test_loader
 
 
-def get_embeddings(model_path,model):
-    train_loader, test_loader = build_loaders_inference()
-    state_dict = torch.load(model_path)
+def get_embeddings(model_path,model,r):
+    train_loader, test_loader = build_loaders_inference(r)
+    checkpoint = torch.load(model_path)
+    state_dict=checkpoint['model_state_dict']
     new_state_dict = {}
     for key in state_dict.keys():
         new_key = key.replace('module.', '')  # remove the prefix 'module.'
@@ -126,9 +127,9 @@ def find_matches(spot_embeddings, query_embeddings, top_k=1, batch_size=1000):
     
     # Concatenate results for all batches into a single array
     return np.concatenate(all_indices, axis=0)
-def save_embeddings(model_path, save_path, train_datasize, test_datasize):
+def save_embeddings(model_path, save_path, train_datasize, test_datasize,r):
 
-    args = generate_args()
+    
     model = mclSTExp_Attention(encoder_name=args.encoder_name,
                                spot_dim=args.dim,
                                temperature=args.temperature,
@@ -140,7 +141,7 @@ def save_embeddings(model_path, save_path, train_datasize, test_datasize):
                                dropout=args.dropout)
 
     train_img_embeddings_all, train_spot_embeddings_all, \
-    test_img_embeddings_all, test_spot_embeddings_all = get_embeddings(model_path,model)
+    test_img_embeddings_all, test_spot_embeddings_all = get_embeddings(model_path,model,r)
     train_img_embeddings_all = train_img_embeddings_all.cpu().numpy()
     train_spot_embeddings_all = train_spot_embeddings_all.cpu().numpy()
     test_img_embeddings_all = test_img_embeddings_all.cpu().numpy()
@@ -194,11 +195,14 @@ def get_expression():
     gene_list= sdata['anucleus'].var['gene_symbols'].values
     return train_log1p_dict,test_log1p_dict,gene_list 
     
+args = generate_args()
 
-names = ['DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_NI']
-# print(names)
-# print(len(names))
-#
+
+
+name_parse= args.test_model
+patch_size= name_parse.split('-')[0]
+epoch=name_parse.split('-')[1]
+MODEL_NAME= f'checkpoint_epoch_{epoch}.pth.tar'
 NAMES=NAMES[:1]
 train_datasize=[]
 test_datasize=[]
@@ -214,10 +218,10 @@ for i in NAMES[:1]:
 
 if SAVE_EMBEDDINGS:
         fold=0
-        save_embeddings(model_path=f"./model_result/mcistexp/best_{fold}.pt",
-                        save_path=f"./embedding_result/mcistexp_result/embeddings_{fold}/",
+        save_embeddings(model_path=f"./model_result/{patch_size}/{MODEL_NAME}",
+                        save_path=f"./embedding_result/{patch_size}/{MODEL_NAME}",
                         train_datasize=train_datasize,
-                        test_datasize=test_datasize)
+                        test_datasize=test_datasize,r=patch_size/2)
 
 
 # spot_expressions = [np.load(f"./data/preprocessed_expression_matrices/mcistexp/{name}/preprocessed_matrix.npy")
@@ -232,7 +236,7 @@ mse_list = []
 mae_list = []
 fold=0
 for test_name in NAMES[:1]:
-    save_path = f"./embedding_result/mcistexp_result/embeddings_{fold}/"
+    save_path = f"./embedding_result/{patch_size}/{MODEL_NAME}"
     train_spot_embeddings = [np.load(save_path + f"train_spot_embeddings_{i}.npy") for i in NAMES]
     test_spot_embeddings = [np.load(save_path + f"test_spot_embeddings_{test_name}.npy")]
 
