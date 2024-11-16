@@ -175,8 +175,7 @@ def save_embeddings(model_path, save_path, args, test_datasize,r):
         np.save(save_path + "test_img_embeddings_" + str(NAMES[i]) + ".npy", test_image_embeddings.T)
 
 def get_sdata(name):
-        path= f'C:/data/crunch/data/{name}.zarr'
-        path= f'F:/Data/crunch_large/Zip_server/{name}.zarr'
+        path= f'../data/{name}.zarr'
         # print(path)
         sdata = sd.read_zarr(path)
         return sdata

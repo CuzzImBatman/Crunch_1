@@ -9,12 +9,12 @@ from utils import AvgMeter, get_lr
 from torch.utils.data import Sampler
 from collections import defaultdict
 import random
-# import torch.optim.lr_scheduler as lr_scheduler
+import torch.nn as nn
 from lr_scheduler import LR_Scheduler
 def generate_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--batch_size', type=int, default=512, help='')
-    parser.add_argument('--max_epochs', type=int, default=120, help='')#90 
+    parser.add_argument('--max_epochs', type=int, default=220, help='')#90 
     parser.add_argument('--temperature', type=float, default=1., help='temperature')
     parser.add_argument('--fold', type=int, default=0, help='fold')
     parser.add_argument('--dim', type=int, default=460, help='spot_embedding dimension (# HVGs)')  
@@ -28,7 +28,7 @@ def generate_args():
     parser.add_argument('--encoder_name', type=str, default='densenet121', help='image encoder')
     parser.add_argument('--path_save', type=str, default='.', help='model saved path')
     parser.add_argument('--resume', type=str, default=False, help='resume training')
-    parser.add_argument('--patch_size', type=int, default=128, help='patch_size')
+    parser.add_argument('--patch_size', type=int, default=100, help='patch_size')
     parser.add_argument('--test_model', type=str, default='64-99', help='patch_size(n)-epoch(e)')
     args = parser.parse_args()
     return args
@@ -128,18 +128,20 @@ def load_checkpoint(epoch, model, optimizer,scheduler,args):
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     epoch = checkpoint['epoch']
     args = checkpoint['args']
-    scheduler.load_state_dict(checkpoint['scheduler'])
+    # scheduler.load_state_dict(checkpoint['scheduler'])
     print(f"Checkpoint loaded from epoch {epoch}")
-    return epoch + 1, args
+    return epoch + 1, args,model,scheduler,optimizer
 
 # Apply the custom learning rate scheduler
 
 def main():
     args = generate_args()
-    
+    print(args.resume)
     args.fold = 0
+    # device = torch.device("cuda:0,1" if torch.cuda.is_available() else "cpu") ## specify the GPU id's, GPU id's start from 0.
+
+
     
-    train_dataLoader,test_dataLoader = load_data(args)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model = mclSTExp_Attention(encoder_name=args.encoder_name,
                                 spot_dim=args.dim,
@@ -150,29 +152,39 @@ def main():
                                 heads_dim=args.heads_dim,
                                 head_layers=args.heads_layers,
                                 dropout=args.dropout)
+    # model= nn.DataParallel(model,device_ids = [1, 3])
+    # if torch.cuda.device_count() > 1:
+    #     print("Let's use", torch.cuda.device_count(), "GPUs!")
+    #     model = nn.DataParallel(model)
     model.to(device)
     ratio = 512/args.batch_size
+    train_dataLoader,test_dataLoader = load_data(args)
+
     optimizer = torch.optim.SGD(
-        model.parameters(), lr=0.2*ratio, weight_decay=1e-5
+        model.parameters(), lr=0.3*ratio, weight_decay=1e-5
     )
+    
     scheduler = LR_Scheduler(optimizer=optimizer
                              ,num_epochs=args.max_epochs
-                             ,base_lr=0.2*ratio
+                             ,base_lr=0.3*ratio
                              ,iter_per_epoch = len(train_dataLoader)
                              ,warmup_epochs= 20
                             ,warmup_lr= 0.1*ratio
-                            ,final_lr= 0.0005
+                            ,final_lr= 0.015
                             ,constant_predictor_lr=False
 )
     start_epoch = 0
-    if args.resume and os.path.isfile(args.resume):
-        start_epoch, args = load_checkpoint(epoch, model, optimizer,scheduler,args)
+    # if args.resume ==True :
+    # print('Resume')
+    # start_epoch, args, model,scheduler, optimizer = load_checkpoint(114, model, optimizer,scheduler,args)
+    print(f'start epoch: {start_epoch}, batch size: {args.batch_size}')
     
     # Training loop
     # scheduler = get_scheduler(scheduler_cfg=args.train.scheduler, optimizer=optimizer)
     # scheduler = lr_scheduler.LambdaLR(
     # optimizer, lr_lambda=lambda epoch: custom_lr_schedule(epoch, args.max_epochs))
-
+    for step in range(start_epoch*len(train_dataLoader)):
+        scheduler.step()
     for epoch in range(start_epoch, args.max_epochs):
         model.train()
         
