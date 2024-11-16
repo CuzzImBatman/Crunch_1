@@ -5088,3 +5088,9 @@ mclSTExp/adata_pred.pkl
 mclSTExp/adata_true.pkl
 mclSTExp/pred.pkl
 mclSTExp/true.pkl
+mclSTExp/pretrain.pth
+WiKG/__pycache__/dataset.cpython-39.pyc
+WiKG/__pycache__/lr_scheduler.cpython-39.pyc
+WiKG/__pycache__/model.cpython-39.pyc
+WiKG/results.csv
+WiKG/val_matrix.txt
