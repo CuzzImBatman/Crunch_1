@@ -176,6 +176,7 @@ def save_embeddings(model_path, save_path, args, test_datasize,r):
 
 def get_sdata(name):
         path= f'C:/data/crunch/data/{name}.zarr'
+        path= f'F:/Data/crunch_large/Zip_server/{name}.zarr'
         # print(path)
         sdata = sd.read_zarr(path)
         return sdata
