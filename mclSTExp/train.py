@@ -153,9 +153,9 @@ def main():
                                 head_layers=args.heads_layers,
                                 dropout=args.dropout)
     # model= nn.DataParallel(model,device_ids = [1, 3])
-    if torch.cuda.device_count() > 1:
-        print("Let's use", torch.cuda.device_count(), "GPUs!")
-        model = nn.DataParallel(model)
+    # if torch.cuda.device_count() > 1:
+    #     print("Let's use", torch.cuda.device_count(), "GPUs!")
+    #     model = nn.DataParallel(model)
     model.to(device)
     ratio = 512/args.batch_size
     train_dataLoader,test_dataLoader = load_data(args)
