@@ -175,8 +175,8 @@ def main():
 )
     start_epoch = 0
     # if args.resume ==True :
-    print('Resume')
-    start_epoch, args, model,scheduler, optimizer = load_checkpoint(114, model, optimizer,scheduler,args)
+    # print('Resume')
+    # start_epoch, args, model,scheduler, optimizer = load_checkpoint(114, model, optimizer,scheduler,args)
     print(f'start epoch: {start_epoch}, batch size: {args.batch_size}')
     
     # Training loop
