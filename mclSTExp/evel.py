@@ -59,8 +59,7 @@ def find_matches(spot_embeddings, query_embeddings, top_k=1, batch_size=1000):
     return np.concatenate(all_indices, axis=0)
 
 def get_sdata(name):
-        path= f'C:/data/crunch/data/{name}.zarr'
-        path=      f'F:/DATA/crunch_large/zip_server/{name}.zarr'
+        path= f'../data/{name}.zarr'
 
         # print(path)
         sdata = sd.read_zarr(path)
