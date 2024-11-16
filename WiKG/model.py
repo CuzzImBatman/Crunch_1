@@ -3,21 +3,24 @@ torch.autograd.set_detect_anomaly(True)
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn import global_mean_pool, global_max_pool, GlobalAttention
-from torchvision.models import DenseNet121_Weights, ResNet18_Weights
-import torchvision.models as models
+from torchvision import transforms
+import timm
 class ImageEncoder(nn.Module):
     def __init__(self):
         super().__init__()
-        self.model = models.densenet121(weights=DenseNet121_Weights.DEFAULT)
-        self.model = nn.Sequential(*list(self.model.children())[:-1])
+        model = timm.create_model(
+    "vit_large_patch16_224", img_size=224, patch_size=16, init_values=1e-5, num_classes=0, dynamic_img_size=True
+)
+        model.load_state_dict(torch.load(("./pretrain/pytorch_model.bin")), strict=True)
+        self.model=model
+        # self.model = nn.Sequential(*list(self.model.children())[:-1])
 
         for p in self.model.parameters():
-            p.requires_grad = True
+            p.requires_grad = False
 
     def forward(self, x):
         x = self.model(x)
-        x = F.adaptive_avg_pool2d(x, (1, 1))
-        x = x.view(x.size(0), -1)
+        
         return x
 class WiKG(nn.Module):
     def __init__(self, dim_in=1024, dim_hidden=512, topk=6, n_classes=2, agg_type='bi-interaction', dropout=0.3, pool='attn'):
