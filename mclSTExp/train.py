@@ -14,7 +14,7 @@ from lr_scheduler import LR_Scheduler
 def generate_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--batch_size', type=int, default=512, help='')
-    parser.add_argument('--max_epochs', type=int, default=120, help='')#90 
+    parser.add_argument('--max_epochs', type=int, default=200, help='')#90 
     parser.add_argument('--temperature', type=float, default=1., help='temperature')
     parser.add_argument('--fold', type=int, default=0, help='fold')
     parser.add_argument('--dim', type=int, default=460, help='spot_embedding dimension (# HVGs)')  
@@ -28,7 +28,7 @@ def generate_args():
     parser.add_argument('--encoder_name', type=str, default='densenet121', help='image encoder')
     parser.add_argument('--path_save', type=str, default='.', help='model saved path')
     parser.add_argument('--resume', type=str, default=False, help='resume training')
-    parser.add_argument('--patch_size', type=int, default=128, help='patch_size')
+    parser.add_argument('--patch_size', type=int, default=100, help='patch_size')
     parser.add_argument('--test_model', type=str, default='64-99', help='patch_size(n)-epoch(e)')
     args = parser.parse_args()
     return args
@@ -165,7 +165,7 @@ def main():
                             ,constant_predictor_lr=False
 )
     start_epoch = 0
-    if args.resume and os.path.isfile(args.resume):
+    if args.resume:
         start_epoch, args = load_checkpoint(epoch, model, optimizer,scheduler,args)
     
     # Training loop

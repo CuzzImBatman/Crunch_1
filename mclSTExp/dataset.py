@@ -426,7 +426,7 @@ class MINI_DATA_BRAIN_BETA(torch.utils.data.Dataset):
     def __init__(self, train=True, gene_list=None, name=None,r=32 ,sr=False, aug=False, norm=False, fold=0):
         super(MINI_DATA_BRAIN_BETA, self).__init__()
         self.dir = '../data'
-        self.dir=f'F:/DATA/crunch_large/zip_server'
+        # self.dir=f'F:/DATA/crunch_large/zip_server'
 
         self.r=int(r)
         # self.r = 200 // 4

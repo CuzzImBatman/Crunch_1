@@ -23,13 +23,8 @@ def get_embeddings(model_path,model,r,save_path):
     train_image_embeddings = []
     train_spot_embeddings = []
     for i in NAMES:
-<<<<<<< HEAD:mclSTExp/test.py
-        train_dataset= MINI_DATA_BRAIN(train=True,r=r,name=i)
-        train_loader =DataLoader(train_dataset, batch_size=256, shuffle=False, num_workers=3)
-=======
         train_dataset= MINI_DATA_BRAIN_BETA(train=True,r=r,name=i)
         train_loader =DataLoader(train_dataset, batch_size=80, shuffle=False, num_workers=0)
->>>>>>> aba6e02942eeeaf520976dd3233b2a65993addac:mclSTExp/get_embedding.py
         checkpoint = torch.load(model_path)
         state_dict=checkpoint['model_state_dict']
         new_state_dict = {}
@@ -82,13 +77,8 @@ def get_embeddings(model_path,model,r,save_path):
     test_image_embeddings = []
 
     for i in NAMES:
-<<<<<<< HEAD:mclSTExp/test.py
-        test_dataset= MINI_DATA_BRAIN(train=False,r=r,name=i)
-        test_loader =DataLoader(test_dataset, batch_size=256, shuffle=False, num_workers=3)
-=======
         test_dataset= MINI_DATA_BRAIN_BETA(train=False,r=r,name=i)
         test_loader =DataLoader(test_dataset, batch_size=80, shuffle=False, num_workers=0)
->>>>>>> aba6e02942eeeaf520976dd3233b2a65993addac:mclSTExp/get_embedding.py
         checkpoint = torch.load(model_path)
         state_dict=checkpoint['model_state_dict']
         new_state_dict = {}
@@ -185,7 +175,7 @@ def save_embeddings(model_path, save_path, args, test_datasize,r):
         np.save(save_path + "test_img_embeddings_" + str(NAMES[i]) + ".npy", test_image_embeddings.T)
 
 def get_sdata(name):
-        path= f'C:/data/crunch/data/{name}.zarr'
+        path= f'../data/{name}.zarr'
         # print(path)
         sdata = sd.read_zarr(path)
         return sdata
