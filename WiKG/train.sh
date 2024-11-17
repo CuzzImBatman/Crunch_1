@@ -1,1 +1,1 @@
-python train.py --device cuda:0
+python3 train.py --device cuda:0
