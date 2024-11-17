@@ -131,7 +131,7 @@ def parse():
     parser.add_argument('--embed_dim', type=int, default=1024, help="The dimension of instance-level representations")
     parser.add_argument('--patch_size', type=int, default=112, help='patch_size')
     parser.add_argument('--utils', type=str, default=None, help='utils path')
-    parser.add_argument('--device', type=str, default='cuda:1', help='device to use for training / testing')
+    parser.add_argument('--device', type=str, default='cuda:0', help='device to use for training / testing')
     parser.add_argument('--n_workers', type=int, default=0)
     parser.add_argument('--seed', default=2023, type=int)  # 3407, 1234, 2023
     parser.add_argument('--n_classes', type=int, default=460)
