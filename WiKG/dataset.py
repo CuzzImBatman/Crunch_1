@@ -6,7 +6,7 @@ import numpy as np
 import torchvision.transforms as transforms
 import glob
 import spatialdata as sd
-from model import ImageEncoder
+# from model import ImageEncoder
 # import cv2
 from PIL import Image
 import pandas as pd
@@ -21,7 +21,16 @@ from skimage.measure import regionprops
 from tqdm import tqdm
 import gc
 
+class PreprocessedDataset(torch.utils.data.Dataset):
+    def __init__(self, preprocessed_features, exps):
+        self.features = preprocessed_features
+        self.exps = exps
 
+    def __len__(self):
+        return len(self.features)
+
+    def __getitem__(self, idx):
+        return self.features[idx], self.exps[idx]
 class DATA_BRAIN(torch.utils.data.Dataset):
 
     def __init__(self, train=True, gene_list=None,name=None, ds=None,r=32 ,sr=False, aug=False, norm=False, device='cuda:0'):
@@ -150,9 +159,9 @@ class DATA_BRAIN(torch.utils.data.Dataset):
         self.loc_dict = loc_dict
         
         self.id2name = dict(enumerate(names))
-        encoder= ImageEncoder()
-        self.encoder = encoder.cuda()
-        encoder=None
+        # encoder= ImageEncoder()
+        # self.encoder = encoder.to('cuda:1')
+        # encoder=None
 
     def __getitem__(self, index):
         i = 0
@@ -222,9 +231,10 @@ class DATA_BRAIN(torch.utils.data.Dataset):
         #     # item["center"] = torch.Tensor(center)
         #     # item['id']=i-1
         #     return patch
-        
-        return self.encoder(patch.cuda()).detach().cpu(),exp
-
+        # data = torch.randn((1, 1024))
+        # return data,exp
+        # return self.encoder(patch.to('cuda:1')).detach().cpu(),exp
+        return patch,exp
     def __len__(self):
         # return 600
         return self.cumlen[-1]
