@@ -11,8 +11,8 @@ class ImageEncoder(nn.Module):
         model = timm.create_model(
     "vit_large_patch16_224", img_size=224, patch_size=16, init_values=1e-5, num_classes=0, dynamic_img_size=True
 )
-        # model.load_state_dict(torch.load(("./pretrain/pytorch_model.bin")), strict=True)
-        model.load_state_dict(torch.load(("D:/Downloads/pytorch_model.bin"), map_location="cuda:0"), strict=True)
+        model.load_state_dict(torch.load(("./pretrain/pytorch_model.bin")), strict=True)
+        # model.load_state_dict(torch.load(("D:/Downloads/pytorch_model.bin"), map_location="cuda:0"), strict=True)
         self.model=model
         # self.model = nn.Sequential(*list(self.model.children())[:-1])
 
@@ -20,7 +20,8 @@ class ImageEncoder(nn.Module):
             p.requires_grad = False
 
     def forward(self, x):
-        x=x.unsqueeze(0)
+        # x=x.unsqueeze(0)
+        # print(x.shape)
         x = self.model(x)
         
         return x
