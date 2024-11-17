@@ -53,7 +53,7 @@ class CustomBatchSampler(Sampler):
 
 
 
-def train_one_epoch(model, train_loader, optimizer, device, epoch):
+def train_one_epoch(model, train_loader, optimizer,scheduler, device, epoch):
     model.train()
     total_loss = torch.zeros(1).to(device)
     train_loader = tqdm(train_loader, file=sys.stdout, ncols=100, colour='red')
@@ -67,6 +67,7 @@ def train_one_epoch(model, train_loader, optimizer, device, epoch):
         loss = F.mse_loss(pred, label)
         loss.backward()
         optimizer.step()
+        scheduler.step()
 
         total_loss = (total_loss * i + loss.detach()) / (i + 1)
         train_loader.desc = 'Train\t[epoch {}] lr: {}\tloss {}'.format(epoch, optimizer.param_groups[0]["lr"], round(total_loss.item(), 3))
@@ -135,7 +136,7 @@ def cal_metrics(logits, labels, num_classes):       # logits:[batch_size, num_cl
 def parse():
     parser = argparse.ArgumentParser('Training for WiKG')
     parser.add_argument('--epochs', type=int, default=200)
-    parser.add_argument('--batch_size', type=int, default=2048, help='patch_size')
+    parser.add_argument('--batch_size', type=int, default=1024, help='patch_size')
 
     parser.add_argument('--embed_dim', type=int, default=1024, help="The dimension of instance-level representations")
     parser.add_argument('--patch_size', type=int, default=112, help='patch_size')
@@ -216,7 +217,7 @@ def main(args):
     output_dir = args.save_dir
     
     val_set = DATA_BRAIN(train=False,r=int(args.patch_size/2), device=args.device)
-    val_loader = DataLoader(val_set, batch_size=2048, num_workers=0, shuffle=False)
+    val_loader = DataLoader(val_set, batch_size=1024, num_workers=0, shuffle=False)
     
     os.makedirs(output_dir, exist_ok=True)
 
@@ -235,7 +236,7 @@ def main(args):
     
     for epoch in range(args.start_epoch, args.epochs):
         checkpoint_filename = f"checkpoint_best_epoch_{epoch}.pth.tar"
-        train_logits = train_one_epoch(model=model, train_loader=train_dataLoader, optimizer=optimizer, device=device, epoch=epoch + 1)
+        train_logits = train_one_epoch(model=model, train_loader=train_dataLoader, optimizer=optimizer,scheduler=scheduler, device=device, epoch=epoch + 1)
         if (epoch+1)%2 ==0: 
             val_preds, val_labels = val_one_epoch(model=model, val_loader=val_loader, device=device, data_type='val')
             mse=mean_squared_error(val_labels, val_preds)
