@@ -11,7 +11,8 @@ class ImageEncoder(nn.Module):
         model = timm.create_model(
     "vit_large_patch16_224", img_size=224, patch_size=16, init_values=1e-5, num_classes=0, dynamic_img_size=True
 )
-        model.load_state_dict(torch.load(("./pretrain/pytorch_model.bin")), strict=True)
+        # model.load_state_dict(torch.load(("./pretrain/pytorch_model.bin")), strict=True)
+        model.load_state_dict(torch.load(("D:/Downloads/pytorch_model.bin"), map_location="cuda:0"), strict=True)
         self.model=model
         # self.model = nn.Sequential(*list(self.model.children())[:-1])
 
@@ -19,13 +20,14 @@ class ImageEncoder(nn.Module):
             p.requires_grad = False
 
     def forward(self, x):
+        x=x.unsqueeze(0)
         x = self.model(x)
         
         return x
 class WiKG(nn.Module):
     def __init__(self, dim_in=1024, dim_hidden=512, topk=6, n_classes=2, agg_type='bi-interaction', dropout=0.3, pool='attn'):
         super().__init__()
-        self.image_encoder = ImageEncoder()
+        # self.image_encoder = ImageEncoder()
         self._fc1 = nn.Sequential(nn.Linear(dim_in, dim_hidden), nn.LeakyReLU())
         
         self.W_head = nn.Linear(dim_hidden, dim_hidden)
@@ -129,11 +131,12 @@ class WiKG(nn.Module):
         try:
             x = x["feature"]
         except:
-            x = x
+            x = x.squeeze(1)
 
-        x = self.image_encoder(x)
-        x = self._fc1(x).unsqueeze(0)    # [B, N, C]
+        # x = self.image_encoder(x)
+        # x = self._fc1(x).unsqueeze(0)    # [B, N, C]
         # print(x.shape)
+        x = self._fc1(x).unsqueeze(0)
         x = (x + x.mean(dim=1, keepdim=True)) * 0.5
 
         e_h = self.W_head(x)
@@ -141,6 +144,7 @@ class WiKG(nn.Module):
         
         # Construct neighbor relationships
         attn_logit = (e_h * self.scale) @ e_t.transpose(-2, -1)
+        valid_topk = min(self.topk, attn_logit.size(-1))
         topk_weight, topk_index = torch.topk(attn_logit, k=self.topk, dim=-1)
 
         topk_index = topk_index.to(torch.long)
