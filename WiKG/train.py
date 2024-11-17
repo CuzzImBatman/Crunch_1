@@ -135,7 +135,7 @@ def cal_metrics(logits, labels, num_classes):       # logits:[batch_size, num_cl
 def parse():
     parser = argparse.ArgumentParser('Training for WiKG')
     parser.add_argument('--epochs', type=int, default=200)
-    parser.add_argument('--batch_size', type=int, default=512, help='patch_size')
+    parser.add_argument('--batch_size', type=int, default=2048, help='patch_size')
 
     parser.add_argument('--embed_dim', type=int, default=1024, help="The dimension of instance-level representations")
     parser.add_argument('--patch_size', type=int, default=112, help='patch_size')
@@ -216,7 +216,7 @@ def main(args):
     output_dir = args.save_dir
     
     val_set = DATA_BRAIN(train=False,r=int(args.patch_size/2), device=args.device)
-    val_loader = DataLoader(val_set, batch_size=50, num_workers=0, shuffle=False)
+    val_loader = DataLoader(val_set, batch_size=2048, num_workers=0, shuffle=False)
     
     os.makedirs(output_dir, exist_ok=True)
 
@@ -231,9 +231,10 @@ def main(args):
             print('test start', file=f)
 
     max_val_mse = 0.0
-    max_val_auc = 0.0
+    max_val_mae = 0.0
     
     for epoch in range(args.start_epoch, args.epochs):
+        checkpoint_filename = f"checkpoint_best_epoch_{epoch}.pth.tar"
         train_logits = train_one_epoch(model=model, train_loader=train_dataLoader, optimizer=optimizer, device=device, epoch=epoch + 1)
         if (epoch+1)%2 ==0: 
             val_preds, val_labels = val_one_epoch(model=model, val_loader=val_loader, device=device, data_type='val')
@@ -247,7 +248,7 @@ def main(args):
        
             if max_val_mse == mse and epoch>30:
                 print('best mse found... save best acc weights...')
-                checkpoint_filename = f"checkpoint_best_epoch_{epoch}.pth.tar"
+                
                 save_checkpoint(epoch, model, optimizer,scheduler, args, filename=checkpoint_filename)
             with open(f'{output_dir}/results.csv', 'a') as csvfile:
                 csv_writer = csv.writer(csvfile)
