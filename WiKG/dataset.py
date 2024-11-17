@@ -6,7 +6,7 @@ import numpy as np
 import torchvision.transforms as transforms
 import glob
 import spatialdata as sd
-
+from model import ImageEncoder
 # import cv2
 from PIL import Image
 import pandas as pd
@@ -150,8 +150,9 @@ class DATA_BRAIN(torch.utils.data.Dataset):
         self.loc_dict = loc_dict
         
         self.id2name = dict(enumerate(names))
-
-        self.patch_dict = {}
+        encoder= ImageEncoder()
+        self.encoder = encoder.cuda()
+        encoder=None
 
     def __getitem__(self, index):
         i = 0
@@ -221,10 +222,11 @@ class DATA_BRAIN(torch.utils.data.Dataset):
         #     # item["center"] = torch.Tensor(center)
         #     # item['id']=i-1
         #     return patch
-        return patch,exp
+        
+        return self.encoder(patch.cuda()).detach().cpu(),exp
 
     def __len__(self):
-        # return 16
+        # return 600
         return self.cumlen[-1]
   
         
