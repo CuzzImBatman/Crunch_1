@@ -198,7 +198,7 @@ def main(args):
 
     dummy_dataset= Dummy(train=True)
     batch_sampler = CustomBatchSampler(dummy_dataset, shuffle=True)
-    train_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=batch_sampler,num_workers=0,pin_memory=True)    
+    train_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=batch_sampler,num_workers=4,pin_memory=True)    
     
     
     model = WiKG(dim_in=args.embed_dim, dim_hidden=512, topk=6, n_classes=args.n_classes, agg_type='bi-interaction', dropout=0.3, pool='mean').to(device)
@@ -217,7 +217,7 @@ def main(args):
     output_dir = args.save_dir
     
     val_set = DATA_BRAIN(train=False,r=int(args.patch_size/2), device=args.device)
-    val_loader = DataLoader(val_set, batch_size=1024, num_workers=0, shuffle=False)
+    val_loader = DataLoader(val_set, batch_size=2048, num_workers=4, shuffle=False)
     
     os.makedirs(output_dir, exist_ok=True)
 
