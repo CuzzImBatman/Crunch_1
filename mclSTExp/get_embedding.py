@@ -24,7 +24,7 @@ def get_embeddings(model_path,model,r,save_path):
     train_spot_embeddings = []
     for i in NAMES:
         train_dataset= MINI_DATA_BRAIN_BETA(train=True,r=r,name=i)
-        train_loader =DataLoader(train_dataset, batch_size=80, shuffle=False, num_workers=0)
+        train_loader =DataLoader(train_dataset, batch_size=256, shuffle=False, num_workers=2)
         checkpoint = torch.load(model_path)
         state_dict=checkpoint['model_state_dict']
         new_state_dict = {}
@@ -78,7 +78,7 @@ def get_embeddings(model_path,model,r,save_path):
 
     for i in NAMES:
         test_dataset= MINI_DATA_BRAIN_BETA(train=False,r=r,name=i)
-        test_loader =DataLoader(test_dataset, batch_size=80, shuffle=False, num_workers=0)
+        test_loader =DataLoader(test_dataset, batch_size=256, shuffle=False, num_workers=2)
         checkpoint = torch.load(model_path)
         state_dict=checkpoint['model_state_dict']
         new_state_dict = {}
@@ -208,11 +208,11 @@ def main():
     #             name in names]
 
    
-        save_embeddings(model_path=f"./model_result/{patch_size}/{MODEL_NAME}",
-                        save_path=f"./model_result/{patch_size}/{epoch}/",
-                        args=args,
-                        test_datasize=test_datasize
-                        ,r=int(patch_size/2))
+    save_embeddings(model_path=f"./model_result/{patch_size}/{MODEL_NAME}",
+                    save_path=f"./model_result/{patch_size}/{epoch}/",
+                    args=args,
+                    test_datasize=test_datasize
+                    ,r=int(patch_size/2))
 
 if __name__ == '__main__':
     main()
