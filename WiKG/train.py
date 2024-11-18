@@ -178,7 +178,7 @@ def main(args):
     cudnn.benchmark = True
 
     utils_dir = args.utils
-    encoder= ImageEncoder().to(args.device)
+    # encoder= ImageEncoder().to(args.device)
     # train_dataset = DATA_BRAIN(train=True,r=int(args.patch_size/2), device=args.device)
     # features, exps = preprocess_dataset(train_dataset, encoder, args.device)
     # features_np = features.numpy()
