@@ -8,4 +8,4 @@
 # done
 
 # 
-python get_embedding_beta.py --test_model 64-109
+python3 get_embedding.py --test_model 100-109
