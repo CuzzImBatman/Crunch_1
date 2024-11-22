@@ -240,7 +240,7 @@ def main(args):
     max_val_mse = 0.0
     max_val_mae = 0.0
     start_epoch= args.start_epoch
-    start_epoch, args, model,scheduler, optimizer = load_checkpoint(463, model, optimizer,scheduler,args)
+    # start_epoch, args, model,scheduler, optimizer = load_checkpoint(463, model, optimizer,scheduler,args)
     for step in range(start_epoch*len(train_dataLoader)):
         scheduler.step()
     print(start_epoch)
