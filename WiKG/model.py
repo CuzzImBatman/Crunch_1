@@ -436,8 +436,8 @@ class WiKG(nn.Module):
 
         # x = self.image_encoder(x)
         #-------------
-        # x = self._fc1(x).unsqueeze(0)    # [B, N, C]
-        x = self._fc1(x) #for testing python model.py
+        x = self._fc1(x).unsqueeze(0)    # [B, N, C]
+        # x = self._fc1(x) #for testing python model.py
         #--------------
         
         x = (x + x.mean(dim=1, keepdim=True)) * 0.5
@@ -460,7 +460,7 @@ class WiKG(nn.Module):
         # Softmax weights for neighbors
         topk_prob = F.softmax(topk_weight, dim=2)
         eh_r = torch.mul(topk_prob.unsqueeze(-1), Nb_h) + torch.matmul((1 - topk_prob).unsqueeze(-1), e_h.unsqueeze(2))
-        print(eh_r.shape,e_h.shape)
+        # print(eh_r.shape,e_h.shape)
         # Gated knowledge attention
         e_h_expand = e_h.unsqueeze(2).expand(-1, -1, self.topk, -1)
         gate = torch.tanh(e_h_expand + eh_r)
