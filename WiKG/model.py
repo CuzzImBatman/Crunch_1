@@ -481,11 +481,11 @@ class WiKG(nn.Module):
             embedding = sum_embedding + bi_embedding
 
         h = self.message_dropout(embedding)
-        print(h.shape)
+        # print(h.shape)
         # Remove pooling; process each node separately
         h = self.norm(h)  # Normalize per-node embeddings
         #----------------
-        print(h.shape)
+        # print(h.shape)
         edge_index =build_edge_index(topk_index=topk_index)
         h = h.squeeze(0)  # Remove batch dimension for GAT
         h = self.gat(h, edge_index)
