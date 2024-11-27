@@ -121,6 +121,10 @@ class DATA_BRAIN(torch.utils.data.Dataset):
             check_bin=0
             for props in tqdm( regionprops(nuc_img_dict[i][0, :, :].to_numpy()) ):
                 cell_id= props.label
+                if cell_id not in cell_id_train and self.train==True:
+                    continue
+                if cell_id  in cell_id_train and self.train==False:
+                    continue
                 # if cell_id >= len( self.sdata_dict[i]['anucleus'].layers['counts']):
                 #     continue
                 if check_bin >=len(split_train_binary):
@@ -326,6 +330,10 @@ class MINI_DATA_BRAIN(torch.utils.data.Dataset):
         check_bin=0
         for props in tqdm( regionprops(nuc_img[0, :, :].to_numpy()) ):
             cell_id= props.label
+            if cell_id not in cell_id_train and self.train==True:
+                    continue
+            if cell_id  in cell_id_train and self.train==False:
+                continue
             # if cell_id >= len( self.sdata_dict[i]['anucleus'].layers['counts']):
             #     continue
             if check_bin >=len(split_train_binary):
