@@ -138,9 +138,7 @@ class DATA_BRAIN(torch.utils.data.Dataset):
                 
                     
                     
-                if flag == False and self.train==True:
-                    continue
-                if flag == True   and self.train==False:
+                if flag == False :
                     continue
                 # if cell_id >= len( self.sdata_dict[i]['anucleus'].layers['counts']):
                 #     continue
@@ -360,9 +358,7 @@ class MINI_DATA_BRAIN(torch.utils.data.Dataset):
             if cell_id >= len(bool_list) or bool_list[cell_id] ==0:
                 flag ==False
         
-            if flag == False and self.train==True:
-                continue
-            if flag == True   and self.train==False:
+            if flag == False: 
                 continue
             if check_bin >=len(split_train_binary):
                 break
