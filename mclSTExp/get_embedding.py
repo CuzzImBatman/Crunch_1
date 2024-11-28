@@ -77,7 +77,7 @@ def get_embeddings(model_path,model,r,save_path):
     test_image_embeddings = []
 
     for i in NAMES:
-        test_dataset= MINI_DATA_BRAIN_BETA(train=False,r=r,name=i)
+        test_dataset= MINI_DATA_BRAIN(train=False,r=r,name=i)
         test_loader =DataLoader(test_dataset, batch_size=256, shuffle=False, num_workers=2)
         checkpoint = torch.load(model_path)
         state_dict=checkpoint['model_state_dict']
