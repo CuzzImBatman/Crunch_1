@@ -23,7 +23,7 @@ def get_embeddings(model_path,model,r,save_path):
     train_image_embeddings = []
     train_spot_embeddings = []
     for i in NAMES:
-        train_dataset= MINI_DATA_BRAIN_BETA(train=True,r=r,name=i)
+        train_dataset= MINI_DATA_BRAIN(train=True,r=r,name=i)
         train_loader =DataLoader(train_dataset, batch_size=256, shuffle=False, num_workers=2)
         checkpoint = torch.load(model_path)
         state_dict=checkpoint['model_state_dict']
