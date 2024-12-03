@@ -36,9 +36,13 @@ def train_one_epoch(model, train_loader, optimizer,scheduler, device, epoch,demo
         # graph_data.cpu()
         # data.cpu()
         pred,label = model(graph_data)
-        label = torch.from_numpy(label.astype(np.float32)).to(device)
+        label = np.array(label, dtype=np.float32)
+        label = torch.from_numpy(label)
+        label= label.to(device)
         # print(label.shape,pred.shape)
-      
+
+        # print(type(label))
+
         loss = F.mse_loss(pred, label)
 
         loss.backward()
@@ -47,14 +51,14 @@ def train_one_epoch(model, train_loader, optimizer,scheduler, device, epoch,demo
 
         total_loss = (total_loss * i + loss.detach()) / (i + 1)
         train_loader.desc = 'Train\t[epoch {}] lr: {}\tloss {}'.format(epoch, optimizer.param_groups[0]["lr"], round(total_loss.item(), 3))
-        if i==10 and demo==True:
+        if i==3 and demo==True:
             break
     torch.cuda.empty_cache()
     return pred
 
 
 @torch.no_grad()
-def val_one_epoch(model, val_loader, device, centroid,demo=False, data_type='val'):
+def val_one_epoch(model, val_loader, device, centroid,demo=False, encoder_mode =False, data_type='val'):
     model.eval()
     labels = torch.tensor([], device=device)
     preds = torch.tensor([], device=device)
@@ -68,6 +72,8 @@ def val_one_epoch(model, val_loader, device, centroid,demo=False, data_type='val
         graph_data= build_batch_graph(data,device)
         # data.cpu()
         # graph_data.cpu()
+        if encoder_mode ==True:
+            centroid=0
         output,label = model(graph_data)
         output= output[centroid:]
         label= label[centroid:]
@@ -75,9 +81,9 @@ def val_one_epoch(model, val_loader, device, centroid,demo=False, data_type='val
         label = torch.from_numpy(label).to(device)
         labels = torch.cat([labels.cpu(), label.cpu()], dim=0)
         preds = torch.cat([preds.cpu(), output.detach().cpu()], dim=0)
-        if i==10 and demo==True:
+        if i==3 and demo==True:
             break
-
+    print(labels.shape,preds.shape)
     return preds.cpu(), labels.cpu()
 
 
@@ -98,9 +104,10 @@ def parse():
     parser.add_argument('--start_epoch', default=0, type=int, metavar='N',
                         help='start epoch')
     parser.add_argument('--save_dir', default='./', help='path where to save')
+    parser.add_argument('--encoder_mode', default=False, type=bool, help='test encoder')
     parser.add_argument('--encoder_name', default='vitsmall', help='fixed encoder name, for saving folder name')
     parser.add_argument('--demo', default=False, type=bool, help='toy run')
-    parser.add_argument('--encoder_mode', default=False, type=bool, help='test encoder')
+    
 
     return parser.parse_args()
 
@@ -113,6 +120,8 @@ def save_checkpoint(epoch, model, optimizer,scheduler, args, filename="checkpoin
         'args': args
     }
     dir=f"{args.save_dir}/model_result"
+    if args.encoder_mode== True:
+        dir=f"{args.save_dir}/encoder"
     os.makedirs(dir, exist_ok=True)
     torch.save(checkpoint, f"{dir}/{filename}")
     print(f"Checkpoint saved at epoch {epoch}")
@@ -120,6 +129,8 @@ def save_checkpoint(epoch, model, optimizer,scheduler, args, filename="checkpoin
 def load_checkpoint(epoch, model, optimizer,scheduler,args):
     filename=f"checkpoint_epoch_{epoch}.pth.tar"
     dir=f"{args.save_dir}/model_result"
+    if args.encoder_mode== True:
+        dir=f"{args.save_dir}/encoder"
     checkpoint = torch.load(f"{dir}/{filename}")
     model.load_state_dict(checkpoint['model_state_dict'])
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
@@ -137,12 +148,16 @@ def main(args):
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
     cudnn.benchmark = True
-    print(args.demo, args.demo== True)
+    print(args.demo,args.encoder_mode, f'demo: {args.demo== True}  encoder: {args.encoder_mode== True}')
     
     utils_dir = args.utils
     NAMES = ['DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I']
     # NAMES=NAMES[:1]
+    
     train_NAMES= NAMES[:3]+ NAMES[5:]
+    if args.demo== True:
+        NAMES=NAMES[:1]
+        train_NAMES=NAMES
     dir=args.embed_dir
     # dir='D:/DATA/Gene_expression/Crunch/preprocessed'
     traindata= NeuronData(emb_folder=dir,train=True, split =True,name_list= train_NAMES,encoder_mode=args.encoder_mode)
@@ -172,7 +187,8 @@ def main(args):
                             ,constant_predictor_lr=False
 )
     
-    val_set= [NeuronData(emb_folder=dir,train=False, split =True,name_list= [name],encoder_mode=args.encoder_mode) for name in NAMES]
+    val_set= [NeuronData(emb_folder=dir,train=False, split =True,name_list= [name],encoder_mode=args.encoder_mode) 
+              for name in NAMES]
     val_loader =[DataLoader(set, batch_size=args.batch_size, shuffle=False,pin_memory=True)for set in val_set]    
     output_dir = args.save_dir
     
@@ -209,7 +225,11 @@ def main(args):
             mse_list = []
             mae_list = []
             for index in range(len(val_loader)): 
-                val_preds, val_labels = val_one_epoch(model=model,demo=args.demo, val_loader=val_loader[index], device=device, data_type='val', centroid= args.batch_size)
+                val_preds, val_labels = val_one_epoch(model=model,demo=args.demo
+                                                      , val_loader=val_loader[index]
+                                                      , device=device, data_type='val'
+                                                      , centroid= args.batch_size
+                                                      ,encoder_mode=args.encoder_mode)
                 mse=mean_squared_error(val_labels, val_preds)
                 mae=mean_absolute_error(val_labels, val_preds)
                 ###############

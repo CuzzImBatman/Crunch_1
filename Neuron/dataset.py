@@ -154,7 +154,7 @@ class NeuronData(Dataset):
         cell_list_cluster   =None
         emb_cells           =None
         emb_centroids       =None
-        print(self.cumlen[-1])
+        # print(self.cumlen[-1])
             
     def __len__(self):
         return self.cumlen[-1]
@@ -219,7 +219,8 @@ class NeuronData(Dataset):
         # return item
         if self.encoder_mode==True:
             emb_cells_in_cluster=torch.empty(0)
-            cell_exps=[]
+            cell_exps=np.array([])
+            cell_edge_index=[]
         return  Data(
             x=emb_cells_in_cluster,  # Node features (including centroid and cells)
             edge_index=cell_edge_index,  # Edge indices (intra-cluster and centroid-to-cell)
@@ -251,27 +252,40 @@ def build_batch_graph(batch,device):
     # for edge_index in batch.edge_index:
     #     print(torch.tensor(edge_index).shape)
     #     all_edge_index.append(torch.tensor(edge_index))
-    for i in range(len(batch.edge_index)):
-        # print(torch.tensor(batch.edge_index[i]).shape)
-        all_edge_index.append(torch.tensor(batch.edge_index[i]).to(device) + node_offset + len(batch.edge_index))
-        # print(torch.tensor(edge_index).shape,len(edge_index))
-        node_offset += batch.cell_num[i]
+    centroid_exps = np.vstack(batch.centroid_exps)  # Get centroid expression data
+    if len(cell_exps)!=0:
+        cell_exps = np.vstack(batch.cell_exps)  # Get cell expression data
+        # print(centroid_exps.shape, cell_exps.shape, all_x.shape)
+        exps= np.vstack((centroid_exps, cell_exps))
+        for i in range(len(batch.edge_index)):
+            # print(torch.tensor(batch.edge_index[i]).shape)
+            all_edge_index.append(torch.tensor(batch.edge_index[i]).to(device) + node_offset + len(batch.edge_index))
+            # print(torch.tensor(edge_index).shape,len(edge_index))
+            node_offset += batch.cell_num[i]
+        edge_index = torch.cat(all_edge_index, dim=0)
+    else:
+        exps=centroid_exps
+        all_edge_index = []
         # print(len(edge_index))
         # print(edge_index.size(0),batch.edge_index.size(0))
-    edge_index = torch.cat(all_edge_index, dim=0)
+        edge_index=torch.empty(0, dtype=torch.long, device=device)
+    
     # print(edge_index.shape)
     all_x = batch.x  # All node features (batch size x feature_dim)
 
     # Assuming centroid embeddings are stored as a separate tensor
     emb_centroids = batch.emb_centroid  # Stack centroid embeddings from the batch
     cluster_centroids = torch.tensor(np.array(batch.cluster_centroid))  # Get centroid positions
-    centroid_exps = np.vstack(batch.centroid_exps)  # Get centroid expression data
-    try:
-        cell_exps = np.vstack(batch.cell_exps)  # Get cell expression data
-        # print(centroid_exps.shape, cell_exps.shape, all_x.shape)
-        exps= np.vstack((centroid_exps, cell_exps))
-    except:
-        exps=centroid_exps
+    
+    # if len(cell_exps)!=0:
+    #     cell_exps = np.vstack(batch.cell_exps)  # Get cell expression data
+    #     # print(centroid_exps.shape, cell_exps.shape, all_x.shape)
+    #     exps= np.vstack((centroid_exps, cell_exps))
+    # else:
+    #     exps=centroid_exps
+    # print('################################')
+    # print(len(batch.edge_index))
+    # print(centroid_exps.shape,exps.shape)    
     # You no longer need to adjust for node_offset since the batch is already stacked
     # Compute distances between cluster centroids for inter-cluster edges
     # print(cluster_centroids[0])
@@ -323,6 +337,8 @@ def build_batch_graph(batch,device):
         neighbors = torch.topk(dist_matrix[i], k=6, largest=False).indices
         for neighbor in neighbors:
             # print(torch.tensor([[i], [neighbor]]).size())
-            edge_index = torch.cat([edge_index, torch.tensor([[i, neighbor]]).to(device)], dim=0)
+            edge_to_add = torch.tensor([[i, neighbor]], dtype=torch.long).to(device)
+            edge_index = torch.cat([edge_index, edge_to_add], dim=0)
+    # print(f'shape:    {exps.shape}')
     # batch.cpu()
     return Data(x=all_x.to(device), edge_index=edge_index.to(device), emb_centroids= emb_centroids.to(device)),exps
