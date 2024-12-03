@@ -255,8 +255,8 @@ def main(args):
             print('Val\t[epoch {}] mse:{}\tmae:{}'.format(epoch + 1, mse, mae))
         
         
-            max_val_mse = max(max_val_mse, mse)
-            max_val_mae = max(max_val_mae, mae)
+#             max_val_mse = max(max_val_mse, mse)
+#             max_val_mae = max(max_val_mae, mae)
        
             if max_val_mse == mse and epoch>30:
                 print('best mse found... save best acc weights...')
