@@ -32,16 +32,7 @@ class PreprocessedDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         return self.features[idx], self.exps[idx]
     
-    class PreprocessedDataset(torch.utils.data.Dataset):
-    def __init__(self, preprocessed_features, exps):
-        self.features = preprocessed_features
-        self.exps = exps
-
-    def __len__(self):
-        return len(self.features)
-
-    def __getitem__(self, idx):
-        return self.features[idx], self.exps[idx]
+    
 class DATA_BRAIN(torch.utils.data.Dataset):
 
     def __init__(self, train=True, gene_list=None,name=None, ds=None,r=32 ,sr=False, aug=False, norm=False, device='cuda:0'):
