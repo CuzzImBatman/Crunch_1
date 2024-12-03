@@ -49,11 +49,11 @@ def get_edge_index(dataframe, k=6):
         return edge_index
 
 class NeuronData(Dataset):
-    def __init__(self, emb_folder='', augmentation=True, random_seed=1234, train=True, split= False,
+    def __init__(self, emb_folder=f'D:/DATA/Gene_expression/Crunch/preprocessed', augmentation=True, random_seed=1234, train=True, split= False,
                  name_list= ['DC1','DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I']):
         self.augmentation = augmentation
         emb_cells=emb_folder
-        emb_dir= f'D:/DATA/Gene_expression/Crunch/preprocessed' 
+        # emb_dir=  
         
         NAMES = name_list
         group='validation'

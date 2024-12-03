@@ -81,7 +81,7 @@ def parse():
     parser.add_argument('--epochs', type=int, default=600)
     parser.add_argument('--batch_size', type=int, default=200, help='patch_size')
 
-    parser.add_argument('--embed_dim', type=int, default=1024, help="The dimension of instance-level representations")
+    parser.add_argument('--embed_dir', type=str, default='/content/preprocessed')
     # parser.add_argument('--patch_size', type=int, default=112, help='patch_size')
     parser.add_argument('--utils', type=str, default=None, help='utils path')
     parser.add_argument('--device', type=str, default='cuda:0', help='device to use for training / testing')
@@ -133,8 +133,8 @@ def main(args):
     utils_dir = args.utils
     NAMES = ['DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I']
     # NAMES=NAMES[:1]
-    dir='D:/Downloads/crunch/WiKG'
-    traindata= NeuronData(train=True, split =True,name_list= NAMES)
+    dir=args.embed_dir
+    traindata= NeuronData(emb_folder=dir,train=True, split =True,name_list= NAMES)
     train_dataLoader =DataLoader(traindata, batch_size=args.batch_size, shuffle=False,pin_memory=False)    
     # print(len(train_dataLoader))
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -161,7 +161,7 @@ def main(args):
                             ,constant_predictor_lr=False
 )
     
-    val_set= NeuronData(train=False, split =True,name_list= NAMES)
+    val_set= NeuronData(emb_folder=dir,train=False, split =True,name_list= NAMES)
     val_loader =DataLoader(val_set, batch_size=100, shuffle=False,pin_memory=True)    
     output_dir = args.save_dir
     
