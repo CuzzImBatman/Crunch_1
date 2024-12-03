@@ -253,7 +253,7 @@ def build_batch_graph(batch,device):
     #     print(torch.tensor(edge_index).shape)
     #     all_edge_index.append(torch.tensor(edge_index))
     centroid_exps = np.vstack(batch.centroid_exps)  # Get centroid expression data
-    if len(cell_exps)!=0:
+    if len(batch.cell_exps)!=0:
         cell_exps = np.vstack(batch.cell_exps)  # Get cell expression data
         # print(centroid_exps.shape, cell_exps.shape, all_x.shape)
         exps= np.vstack((centroid_exps, cell_exps))
