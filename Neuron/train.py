@@ -104,14 +104,14 @@ def save_checkpoint(epoch, model, optimizer,scheduler, args, filename="checkpoin
         'scheduler': scheduler.state_dict(),
         'args': args
     }
-    dir=f"{args.save_dir}/model_result/{args.patch_size}"
+    dir=f"{args.save_dir}/model_result"
     os.makedirs(dir, exist_ok=True)
     torch.save(checkpoint, f"{dir}/{filename}")
     print(f"Checkpoint saved at epoch {epoch}")
 
 def load_checkpoint(epoch, model, optimizer,scheduler,args):
     filename=f"checkpoint_epoch_{epoch}.pth.tar"
-    dir=f"{args.save_dir}model_result/{args.patch_size}"
+    dir=f"{args.save_dir}model_result"
     checkpoint = torch.load(f"{dir}/{filename}")
     model.load_state_dict(checkpoint['model_state_dict'])
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
