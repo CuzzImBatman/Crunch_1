@@ -191,7 +191,7 @@ def main(args):
     for epoch in range(start_epoch, args.epochs):
         checkpoint_filename = f"checkpoint_best_epoch_{epoch}.pth.tar"
         train_logits = train_one_epoch(model=model, train_loader=train_dataLoader, optimizer=optimizer,scheduler=scheduler, device=device, epoch=epoch + 1)
-        if (epoch+1)%1 ==0: 
+        if (epoch+1)%2 ==0: 
             val_preds, val_labels = val_one_epoch(model=model, val_loader=val_loader, device=device, data_type='val')
             mse=mean_squared_error(val_labels, val_preds)
             mae=mean_absolute_error(val_labels, val_preds)
