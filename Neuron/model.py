@@ -27,12 +27,15 @@ class GATModel(nn.Module):
         emb_centroids = emb_data.emb_centroids  # Shape: [num_clusters, 1024], centroids for each cluster
 
         # Process emb_cells_in_cluster with flatten_mlp (this processes cell features)
-        x_processed = self.flatten_mlp(x)  # Shape: [total_cells_in_batch, 1024]
-        
-        # Combine emb_centroids with processed cell features
-        # print(x_processed.shape, emb_centroids.shape)
         emb_centroids= emb_centroids.view(-1,1024)
-        x_combined = torch.cat([emb_centroids, x_processed], dim=0)  # Shape: [total_nodes, 1024]
+        if x.numel() != 0:
+            x_processed = self.flatten_mlp(x)  # Shape: [total_cells_in_batch, 1024]
+            
+            # Combine emb_centroids with processed cell features
+            # print(x_processed.shape, emb_centroids.shape)
+            x_combined = torch.cat([emb_centroids, x_processed], dim=0)  # Shape: [total_nodes, 1024]
+        else:
+            x_combined=emb_centroids
         # print(emb_centroids.shape,x_processed.shape,exps.shape)
         # print(x_combined.shape)
         # Adjust edge_index: The first 'num_clusters' nodes represent centroids.

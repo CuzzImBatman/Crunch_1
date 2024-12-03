@@ -100,6 +100,7 @@ def parse():
     parser.add_argument('--save_dir', default='./', help='path where to save')
     parser.add_argument('--encoder_name', default='vitsmall', help='fixed encoder name, for saving folder name')
     parser.add_argument('--demo', default=False, type=bool, help='toy run')
+    parser.add_argument('--encoder_mode', default=False, type=bool, help='test encoder')
 
     return parser.parse_args()
 
@@ -144,7 +145,7 @@ def main(args):
     train_NAMES= NAMES[:3]+ NAMES[5:]
     dir=args.embed_dir
     # dir='D:/DATA/Gene_expression/Crunch/preprocessed'
-    traindata= NeuronData(emb_folder=dir,train=True, split =True,name_list= train_NAMES)
+    traindata= NeuronData(emb_folder=dir,train=True, split =True,name_list= train_NAMES,encoder_mode=args.encoder_mode)
     train_dataLoader =DataLoader(traindata, batch_size=args.batch_size, shuffle=False,pin_memory=False)    
     # print(len(train_dataLoader))
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -171,7 +172,7 @@ def main(args):
                             ,constant_predictor_lr=False
 )
     
-    val_set= [NeuronData(emb_folder=dir,train=False, split =True,name_list= [name]) for name in NAMES]
+    val_set= [NeuronData(emb_folder=dir,train=False, split =True,name_list= [name],encoder_mode=args.encoder_mode) for name in NAMES]
     val_loader =[DataLoader(set, batch_size=args.batch_size, shuffle=False,pin_memory=True)for set in val_set]    
     output_dir = args.save_dir
     
@@ -207,8 +208,8 @@ def main(args):
             heg_pcc_list = []
             mse_list = []
             mae_list = []
-            for i in range(len(val_set)): 
-                val_preds, val_labels = val_one_epoch(model=model,demo=args.demo, val_loader=val_loader[i], device=device, data_type='val', centroid= args.batch_size)
+            for index in range(len(val_loader)): 
+                val_preds, val_labels = val_one_epoch(model=model,demo=args.demo, val_loader=val_loader[index], device=device, data_type='val', centroid= args.batch_size)
                 mse=mean_squared_error(val_labels, val_preds)
                 mae=mean_absolute_error(val_labels, val_preds)
                 ###############
@@ -234,7 +235,7 @@ def main(args):
                 mse_list.append(mse)
                 mae_list.append(mae)
             
-                print(f'name: {NAMES[i]}')
+                print(f'name: {NAMES[index]}')
                 print('Val\t[epoch {}] mse:{}\tmae:{}\theg:{} \thevg:{}'.format(epoch + 1, mse, mae,np.mean(heg_pcc),np.mean(hvg_pcc)))
             # print(f"avg heg pcc : {np.mean(heg_pcc):.4f}")
             # print(f"avg hvg pcc: {np.mean(hvg_pcc):.4f}")

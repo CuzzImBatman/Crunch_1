@@ -49,12 +49,12 @@ def get_edge_index(dataframe, k=6):
         return edge_index
 
 class NeuronData(Dataset):
-    def __init__(self, emb_folder=f'D:/DATA/Gene_expression/Crunch/preprocessed', augmentation=True, random_seed=1234, train=True, split= False,
+    def __init__(self, emb_folder=f'D:/DATA/Gene_expression/Crunch/preprocessed', augmentation=True,encoder_mode=False, random_seed=1234, train=True, split= False,
                  name_list= ['DC1','DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I']):
         self.augmentation = augmentation
         emb_dir=emb_folder
         # emb_dir=  
-        
+        self.encoder_mode= encoder_mode
         NAMES = name_list
         group='validation'
         dataset_type= None
@@ -217,6 +217,9 @@ class NeuronData(Dataset):
         # item['cell_exps']=  cell_exps
         # item['centroid_exps']= centroid_exps
         # return item
+        if self.encoder_mode==True:
+            emb_cells_in_cluster=torch.empty(0)
+            cell_exps=[]
         return  Data(
             x=emb_cells_in_cluster,  # Node features (including centroid and cells)
             edge_index=cell_edge_index,  # Edge indices (intra-cluster and centroid-to-cell)
@@ -263,9 +266,12 @@ def build_batch_graph(batch,device):
     emb_centroids = batch.emb_centroid  # Stack centroid embeddings from the batch
     cluster_centroids = torch.tensor(np.array(batch.cluster_centroid))  # Get centroid positions
     centroid_exps = np.vstack(batch.centroid_exps)  # Get centroid expression data
-    cell_exps = np.vstack(batch.cell_exps)  # Get cell expression data
-    # print(centroid_exps.shape, cell_exps.shape, all_x.shape)
-    exps= np.vstack((centroid_exps, cell_exps))
+    try:
+        cell_exps = np.vstack(batch.cell_exps)  # Get cell expression data
+        # print(centroid_exps.shape, cell_exps.shape, all_x.shape)
+        exps= np.vstack((centroid_exps, cell_exps))
+    except:
+        exps=centroid_exps
     # You no longer need to adjust for node_offset since the batch is already stacked
     # Compute distances between cluster centroids for inter-cluster edges
     # print(cluster_centroids[0])
