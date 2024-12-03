@@ -171,8 +171,8 @@ class ProjectionHead(nn.Module):
 class mclSTExp_MLP(nn.Module):
     def __init__(self, temperature, image_embedding, spot_embedding, projection_dim, dropout=0.):
         super().__init__()
-        self.x_embed = nn.Embedding(25000, spot_embedding)
-        self.y_embed = nn.Embedding(25000, spot_embedding)
+        self.x_embed = nn.Embedding(60000, spot_embedding)
+        self.y_embed = nn.Embedding(60000, spot_embedding)
         self.image_ecode = ImageEncoder()
         self.image_projection = ProjectionHead(embedding_dim=image_embedding, projection_dim=projection_dim)
         self.spot_projection = ProjectionHead(embedding_dim=spot_embedding, projection_dim=projection_dim)

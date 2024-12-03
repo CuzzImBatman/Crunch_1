@@ -1,1 +1,1 @@
-python evel.py --test_model 100-39
+python3 evel.py --test_model 100-99

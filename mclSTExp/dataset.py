@@ -36,7 +36,7 @@ class DATA_BRAIN(torch.utils.data.Dataset):
         self.sr = sr
         self.aug = aug
         self.transforms = transforms.Compose([
-            transforms.ColorJitter(0.5, 0.5, 0.5),
+            # transforms.ColorJitter(0.2, 0.5, 0.5),
             transforms.RandomHorizontalFlip(),
             transforms.RandomRotation(degrees=180),
             transforms.ToTensor()
@@ -104,23 +104,42 @@ class DATA_BRAIN(torch.utils.data.Dataset):
                     split_train_binary = pickle.load(f)
                     
         
-            if self.train:
-                log1p_dict[i]=self.anucleus_dict[i].X[np.array(split_train_binary)==1]
-                lengths.append(partial_train_length)
-            else:
-                log1p_dict[i]=self.anucleus_dict[i].X[np.array(split_train_binary)==0]
-                lengths.append(train_length-partial_train_length)
+            # if self.train:
+            #     log1p_dict[i]=self.anucleus_dict[i].X[np.array(split_train_binary)==1]
+            #     lengths.append(partial_train_length)
+            # else:
+            #     log1p_dict[i]=self.anucleus_dict[i].X[np.array(split_train_binary)==0]
+            #     lengths.append(train_length-partial_train_length)
             
             cell_id_train = self.cell_id_group_dict[i].obs[self.cell_id_group_dict[i].obs['group'] == 'train']['cell_id'].to_numpy()
             cell_id_train = list(set(cell_id_train).intersection(set(self.anucleus_dict[i].obs['cell_id'].unique())))
 
-            # ground_truth = self.sdata_dict[i]['anucleus'].layers['counts'][self.sdata_dict[i]['anucleus'].obs['cell_id'].isin(cell_id_train),:]
-            
+            ground_truth = self.anucleus_dict[i].X[self.anucleus_dict[i].obs['cell_id'].isin(cell_id_train),:]
+            if self.train:
+                log1p_dict[i]=ground_truth[np.array(split_train_binary)==1]
+                lengths.append(partial_train_length)
+            else:
+                log1p_dict[i]=ground_truth[np.array(split_train_binary)==0]
+                lengths.append(train_length-partial_train_length)
+            bool_list= [0]*(max(cell_id_train)+1)
+            for id in cell_id_train:
+                bool_list[id]=1
             print(len(split_train_binary),train_length,int(train_length*0.9))
             
             check_bin=0
-            for props in tqdm( regionprops(nuc_img_dict[i][0, :, :].to_numpy()) ):
-                cell_id= props.label
+            with open(f'./pre_load/{i}_cells.pkl','rb') as f:
+                cell_list= pickle.load(f)
+            for props in cell_list:
+                cell_id= props['cell_id']
+                # print(cell_id)
+                flag= True
+                if cell_id >= len(bool_list) or bool_list[cell_id] ==0:
+                    flag ==False
+                
+                    
+                    
+                if flag == False :
+                    continue
                 # if cell_id >= len( self.sdata_dict[i]['anucleus'].layers['counts']):
                 #     continue
                 if check_bin >=len(split_train_binary):
@@ -132,14 +151,15 @@ class DATA_BRAIN(torch.utils.data.Dataset):
                 
                 check_bin+=1
                 
-                centroid = props.centroid
+                centroid = props['center']
                 center_list.append([int(centroid[1]), int(centroid[0])])
                 cell_id_list.append(int(cell_id))
             
-            # print(len(center_list))
+            print(len(center_list))
             center_dict[i]=center_list
             loc_dict[i]=cell_id_list
-        del nuc_img_dict    
+        bool_list=None
+        del  bool_list
         self.log1p_dict=log1p_dict
         self.lengths=lengths
         self.cumlen = np.cumsum(self.lengths)
@@ -230,12 +250,13 @@ class DATA_BRAIN(torch.utils.data.Dataset):
         # print(path)
         sdata = sd.read_zarr(path)
         return sdata
+
 class MINI_DATA_BRAIN(torch.utils.data.Dataset):
 
     def __init__(self, train=True, gene_list=None, name=None,r=32 ,sr=False, aug=False, norm=False, fold=0):
         super(MINI_DATA_BRAIN, self).__init__()
         self.dir = '../data'
-        # self.dir=f'F:/DATA/crunch_large/zip_server'
+        self.dir=f'F:/DATA/crunch_large/zip_server'
 
         self.r=int(r)
         # self.r = 200 // 4
@@ -246,7 +267,6 @@ class MINI_DATA_BRAIN(torch.utils.data.Dataset):
         self.sr = sr
         self.aug = aug
         self.transforms = transforms.Compose([
-            transforms.ColorJitter(0.5, 0.5, 0.5),
             transforms.RandomHorizontalFlip(),
             transforms.RandomRotation(degrees=180),
             transforms.ToTensor()
@@ -257,17 +277,13 @@ class MINI_DATA_BRAIN(torch.utils.data.Dataset):
         # names= sample_names[:1]
         print('Loading sdata...')
         # self.sdata_dict = {i: self.get_sdata(i) for i in names}
-        img_dict={}
-        nuc_img_dict={}
-        anucleus_dict={}
-        cell_id_group_dict={}
+        
         
         sdata= self.get_sdata(name)
         self.img= sdata['HE_registered'].to_numpy()
         nuc_img=sdata['HE_nuc_registered']
         self.cell_id_group=sdata['cell_id-group']
         self.anucleus= sdata['anucleus']
-        sdata=None
         del sdata
         gc.collect()
 
@@ -309,25 +325,41 @@ class MINI_DATA_BRAIN(torch.utils.data.Dataset):
                 split_train_binary = pickle.load(f)
                 
     
-        if self.train:
-            log1p_dict=self.anucleus.X[np.array(split_train_binary)==1]
-            length= partial_train_length
-        else:
-            log1p_dict=self.anucleus.X[np.array(split_train_binary)==0]
-            length= train_length-partial_train_length
+        # if self.train:
+        #     log1p_dict=self.anucleus.X[np.array(split_train_binary)==1]
+        #     length= partial_train_length
+        # else:
+        #     log1p_dict=self.anucleus.X[np.array(split_train_binary)==0]
+        #     length= train_length-partial_train_length
             
         cell_id_train = self.cell_id_group.obs[self.cell_id_group.obs['group'] == 'train']['cell_id'].to_numpy()
         cell_id_train = list(set(cell_id_train).intersection(set(self.anucleus.obs['cell_id'].unique())))
 
-            # ground_truth = self.sdata_dict[i]['anucleus'].layers['counts'][self.sdata_dict[i]['anucleus'].obs['cell_id'].isin(cell_id_train),:]
-            
+        ground_truth = self.anucleus.X[self.anucleus.obs['cell_id'].isin(cell_id_train),:]
+        if self.train:
+            log1p_dict=ground_truth[np.array(split_train_binary)==1]
+            length= partial_train_length
+        else:
+            log1p_dict=ground_truth[np.array(split_train_binary)==0]
+            length= train_length-partial_train_length
+        bool_list= [0]*(max(cell_id_train)+1)
+        for id in cell_id_train:
+            bool_list[id]=1
         print(len(split_train_binary),train_length,int(train_length*0.9))
             
         check_bin=0
-        for props in tqdm( regionprops(nuc_img[0, :, :].to_numpy()) ):
-            cell_id= props.label
+        with open(f'./pre_load/{name}_cells.pkl','rb') as f:
+                cell_list= pickle.load(f)
+        for props in cell_list:
+            cell_id= props['cell_id']
             # if cell_id >= len( self.sdata_dict[i]['anucleus'].layers['counts']):
             #     continue
+            flag= True
+            if cell_id >= len(bool_list) or bool_list[cell_id] ==0:
+                flag ==False
+        
+            if flag == False: 
+                continue
             if check_bin >=len(split_train_binary):
                 break
             if (split_train_binary[check_bin] ==0 and self.train==True) or\
@@ -337,7 +369,7 @@ class MINI_DATA_BRAIN(torch.utils.data.Dataset):
             
             check_bin+=1
             
-            centroid = props.centroid
+            centroid = props['center']
             center_list.append([int(centroid[1]), int(centroid[0])])
             cell_id_list.append(int(cell_id))
         
@@ -418,9 +450,10 @@ class MINI_DATA_BRAIN(torch.utils.data.Dataset):
     def get_sdata(self, name):
         path= f'{self.dir}/{name}.zarr'
         # path = os.path.join()
-        # print(path)
+        print(path)
         sdata = sd.read_zarr(path)
         return sdata
+
 class MINI_DATA_BRAIN_BETA(torch.utils.data.Dataset):
 
     def __init__(self, train=True, gene_list=None, name=None,r=32 ,sr=False, aug=False, norm=False, fold=0):
@@ -437,7 +470,7 @@ class MINI_DATA_BRAIN_BETA(torch.utils.data.Dataset):
         self.sr = sr
         self.aug = aug
         self.transforms = transforms.Compose([
-            transforms.ColorJitter(0.5, 0.5, 0.5),
+            # transforms.ColorJitter(0.5, 0.5, 0.5),
             transforms.RandomHorizontalFlip(),
             transforms.RandomRotation(degrees=180),
             transforms.ToTensor()
