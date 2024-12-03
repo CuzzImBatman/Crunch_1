@@ -80,8 +80,8 @@ class NeuronData(Dataset):
         lenngths=[]
         for name in NAMES:
             preload_dir=f'../pre_load'
-            with open(f'{preload_dir}/{name}_cells.pkl','rb') as f:
-                cell_list_org= pickle.load(f)
+            # with open(f'{preload_dir}/{name}_cells.pkl','rb') as f:
+            #     cell_list_org= pickle.load(f)
             if split== True:
                 cluster_dir=f'./cluster/train/cluster_data_split'
             elif train == False:
