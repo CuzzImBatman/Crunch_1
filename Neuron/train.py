@@ -24,11 +24,11 @@ import anndata
 from utils import get_R
 
 
-def train_one_epoch(model, train_loader, optimizer,scheduler, device, epoch):
+def train_one_epoch(model, train_loader, optimizer,scheduler, device, epoch,demo=False):
     model.train()
     total_loss = torch.zeros(1).to(device)
     train_loader = tqdm(train_loader, file=sys.stdout, ncols=100, colour='red')
-
+    # optimizer.zero_grad()
     for i, data in enumerate(train_loader):
         optimizer.zero_grad()
         # data = data.to(device)
@@ -47,13 +47,14 @@ def train_one_epoch(model, train_loader, optimizer,scheduler, device, epoch):
 
         total_loss = (total_loss * i + loss.detach()) / (i + 1)
         train_loader.desc = 'Train\t[epoch {}] lr: {}\tloss {}'.format(epoch, optimizer.param_groups[0]["lr"], round(total_loss.item(), 3))
-
+        if i==10 and demo==True:
+            break
     torch.cuda.empty_cache()
     return pred
 
 
 @torch.no_grad()
-def val_one_epoch(model, val_loader, device, data_type='val'):
+def val_one_epoch(model, val_loader, device, centroid,demo=False, data_type='val'):
     model.eval()
     labels = torch.tensor([], device=device)
     preds = torch.tensor([], device=device)
@@ -68,9 +69,14 @@ def val_one_epoch(model, val_loader, device, data_type='val'):
         # data.cpu()
         # graph_data.cpu()
         output,label = model(graph_data)
+        output= output[centroid:]
+        label= label[centroid:]
+        
         label = torch.from_numpy(label).to(device)
         labels = torch.cat([labels.cpu(), label.cpu()], dim=0)
         preds = torch.cat([preds.cpu(), output.detach().cpu()], dim=0)
+        if i==10 and demo==True:
+            break
 
     return preds.cpu(), labels.cpu()
 
@@ -93,6 +99,7 @@ def parse():
                         help='start epoch')
     parser.add_argument('--save_dir', default='./', help='path where to save')
     parser.add_argument('--encoder_name', default='vitsmall', help='fixed encoder name, for saving folder name')
+    parser.add_argument('--demo', default=False, type=bool, help='toy run')
 
     return parser.parse_args()
 
@@ -111,7 +118,7 @@ def save_checkpoint(epoch, model, optimizer,scheduler, args, filename="checkpoin
 
 def load_checkpoint(epoch, model, optimizer,scheduler,args):
     filename=f"checkpoint_epoch_{epoch}.pth.tar"
-    dir=f"{args.save_dir}model_result"
+    dir=f"{args.save_dir}/model_result"
     checkpoint = torch.load(f"{dir}/{filename}")
     model.load_state_dict(checkpoint['model_state_dict'])
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
@@ -129,7 +136,8 @@ def main(args):
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
     cudnn.benchmark = True
-
+    print(args.demo, args.demo== True)
+    
     utils_dir = args.utils
     NAMES = ['DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I']
     # NAMES=NAMES[:1]
@@ -162,8 +170,8 @@ def main(args):
                             ,constant_predictor_lr=False
 )
     
-    val_set= NeuronData(emb_folder=dir,train=False, split =True,name_list= NAMES)
-    val_loader =DataLoader(val_set, batch_size=100, shuffle=False,pin_memory=True)    
+    val_set= [NeuronData(emb_folder=dir,train=False, split =True,name_list= [name]) for name in NAMES]
+    val_loader =[DataLoader(set, batch_size=args.batch_size, shuffle=False,pin_memory=True)for set in val_set]    
     output_dir = args.save_dir
     
     # val_set = DATA_BRAIN(train=False,r=int(args.patch_size/2), device=args.device)
@@ -191,38 +199,50 @@ def main(args):
     print(f'start epoch: {start_epoch}, batch size: {args.batch_size}')
     for epoch in range(start_epoch, args.epochs):
         checkpoint_filename = f"checkpoint_best_epoch_{epoch}.pth.tar"
-        train_logits = train_one_epoch(model=model, train_loader=train_dataLoader, optimizer=optimizer,scheduler=scheduler, device=device, epoch=epoch + 1)
+        train_logits = train_one_epoch(model=model, train_loader=train_dataLoader
+                                       ,demo=args.demo, optimizer=optimizer,scheduler=scheduler, device=device, epoch=epoch + 1)
         if (epoch+1)%2 ==0: 
-            val_preds, val_labels = val_one_epoch(model=model, val_loader=val_loader, device=device, data_type='val')
-            mse=mean_squared_error(val_labels, val_preds)
-            mae=mean_absolute_error(val_labels, val_preds)
-            ###############
-            tmp_list=[str(i) for i in range(460)]
-            val_labels=val_labels.numpy()
-            val_preds= val_preds.numpy() 
-            adata_true = anndata.AnnData(val_labels)
-            adata_pred = anndata.AnnData(val_preds)
-            adata_pred.var_names = tmp_list
-            adata_true.var_names = tmp_list
-            gene_mean_expression = np.mean(adata_true.X, axis=0)
-            top_50_genes_indices = np.argsort(gene_mean_expression)[::-1][:50]
-            top_50_genes_names = adata_true.var_names[top_50_genes_indices]
-            top_50_genes_expression = adata_true[:, top_50_genes_names]
-            top_50_genes_pred = adata_pred[:, top_50_genes_names]
+            hvg_pcc_list = []
+            heg_pcc_list = []
+            mse_list = []
+            mae_list = []
+            for i in range(len(val_set)): 
+                val_preds, val_labels = val_one_epoch(model=model,demo=args.demo, val_loader=val_loader[i], device=device, data_type='val', centroid= args.batch_size)
+                mse=mean_squared_error(val_labels, val_preds)
+                mae=mean_absolute_error(val_labels, val_preds)
+                ###############
+                tmp_list=[str(i) for i in range(460)]
+                val_labels=val_labels.numpy()
+                val_preds= val_preds.numpy() 
+                adata_true = anndata.AnnData(val_labels)
+                adata_pred = anndata.AnnData(val_preds)
+                adata_pred.var_names = tmp_list
+                adata_true.var_names = tmp_list
+                gene_mean_expression = np.mean(adata_true.X, axis=0)
+                top_50_genes_indices = np.argsort(gene_mean_expression)[::-1][:50]
+                top_50_genes_names = adata_true.var_names[top_50_genes_indices]
+                top_50_genes_expression = adata_true[:, top_50_genes_names]
+                top_50_genes_pred = adata_pred[:, top_50_genes_names]
 
-            heg_pcc, heg_p = get_R(top_50_genes_pred, top_50_genes_expression)
-            hvg_pcc, hvg_p = get_R(adata_pred, adata_true)
-            hvg_pcc = hvg_pcc[~np.isnan(hvg_pcc)]
+                heg_pcc, heg_p = get_R(top_50_genes_pred, top_50_genes_expression)
+                hvg_pcc, hvg_p = get_R(adata_pred, adata_true)
+                hvg_pcc = hvg_pcc[~np.isnan(hvg_pcc)]
+                
+                heg_pcc_list.append(np.mean(heg_pcc))
+                hvg_pcc_list.append(np.mean(hvg_pcc))
+                mse_list.append(mse)
+                mae_list.append(mae)
             
+                print(f'name: {NAMES[i]}')
+                print('Val\t[epoch {}] mse:{}\tmae:{}\theg:{} \thevg:{}'.format(epoch + 1, mse, mae,np.mean(heg_pcc),np.mean(hvg_pcc)))
             # print(f"avg heg pcc : {np.mean(heg_pcc):.4f}")
             # print(f"avg hvg pcc: {np.mean(hvg_pcc):.4f}")
-            
-            
-            print('Val\t[epoch {}] mse:{}\tmae:{}\theg:{} \thevg:{}'.format(epoch + 1, mse, mae,np.mean(heg_pcc),np.mean(hvg_pcc)))
-        
-        
-            min_val_mse = max(min_val_mse, mse)
-            min_val_mae = max(min_val_mae, mae)
+            print(f"Mean Squared Error (MSE): {np.mean(mse_list):.4f}")
+            print(f"Mean Absolute Error (MAE): {np.mean(mae_list):.4f}")
+            print(f"avg heg pcc: {np.mean(heg_pcc_list):.4f}")
+            print(f"avg hvg pcc: {np.mean(hvg_pcc_list):.4f}")
+            min_val_mse = min(min_val_mse, np.mean(mse_list))
+            min_val_mae = min(min_val_mae, np.mean(mae_list))
        
             if min_val_mae == mse and epoch>30:
                 print('best mse found... save best acc weights...')
