@@ -52,7 +52,7 @@ class NeuronData(Dataset):
     def __init__(self, emb_folder=f'D:/DATA/Gene_expression/Crunch/preprocessed', augmentation=True, random_seed=1234, train=True, split= False,
                  name_list= ['DC1','DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I']):
         self.augmentation = augmentation
-        emb_cells=emb_folder
+        emb_dir=emb_folder
         # emb_dir=  
         
         NAMES = name_list
@@ -243,7 +243,7 @@ def build_batch_graph(batch,device):
     cell_exps=[]
     all_centroids_emb=[]
     node_offset = 0  # To adjust indices for each cluster
-    batch = batch.to(device)
+    # batch = batch.to(device)
     # print(len(batch.edge_index))
     # for edge_index in batch.edge_index:
     #     print(torch.tensor(edge_index).shape)
@@ -318,5 +318,5 @@ def build_batch_graph(batch,device):
         for neighbor in neighbors:
             # print(torch.tensor([[i], [neighbor]]).size())
             edge_index = torch.cat([edge_index, torch.tensor([[i, neighbor]]).to(device)], dim=0)
-    batch.cpu()
-    return Data(x=all_x, edge_index=edge_index, emb_centroids= emb_centroids),exps
+    # batch.cpu()
+    return Data(x=all_x.to(device), edge_index=edge_index.to(device), emb_centroids= emb_centroids.to(device)),exps

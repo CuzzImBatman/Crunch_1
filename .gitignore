@@ -5281,3 +5281,4 @@ pre_load/UC6_NI_cells.pkl
 pre_load/UC7_I_cells.pkl
 pre_load/UC9_I_cells.pkl
 .gitignore
+Neuron/results.csv

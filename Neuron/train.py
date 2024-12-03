@@ -134,6 +134,7 @@ def main(args):
     NAMES = ['DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I']
     # NAMES=NAMES[:1]
     dir=args.embed_dir
+    # dir='D:/DATA/Gene_expression/Crunch/preprocessed'
     traindata= NeuronData(emb_folder=dir,train=True, split =True,name_list= NAMES)
     train_dataLoader =DataLoader(traindata, batch_size=args.batch_size, shuffle=False,pin_memory=False)    
     # print(len(train_dataLoader))
