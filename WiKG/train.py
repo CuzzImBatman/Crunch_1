@@ -8,7 +8,7 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 import torch.backends.cudnn as cudnn
-from dataset import DATA_BRAIN,Dummy,PreprocessedDataset
+from dataset import Dummy,CLUSTER_BRAIN
 from pathlib import Path
 from lr_scheduler import LR_Scheduler
 from torch.utils.data import Sampler
@@ -58,8 +58,11 @@ def train_one_epoch(model, train_loader, optimizer,scheduler, device, epoch):
     total_loss = torch.zeros(1).to(device)
     train_loader = tqdm(train_loader, file=sys.stdout, ncols=100, colour='red')
 
-    for i, (data, label) in enumerate(train_loader):
+    for i, batch in enumerate(train_loader):
         optimizer.zero_grad()
+        label= batch['expression']
+        label = np.array(label, dtype=np.float32)
+        label = torch.from_numpy(label)
         data = data.to(device)
         label = label.to(device)
         pred = model(data)
@@ -140,6 +143,7 @@ def parse():
                         help='start epoch')
     parser.add_argument('--save_dir', default='./', help='path where to save')
     parser.add_argument('--encoder_name', default='vitsmall', help='fixed encoder name, for saving folder name')
+    parser.add_argument('--embed_dir', type=str, default='/content/preprocessed')
 
     return parser.parse_args()
 
@@ -188,19 +192,14 @@ def main(args):
     # features_np = features.numpy()
     
     # np.savez('preprocessed_val.npz', features=features_np, exps=exps)
-    data= np.load('./preprocess/preprocessed_train.npz')
     # print(features_np)
-    features = torch.from_numpy(data['features'])
-    exps=data['exps']
-    preprocessed_train_dataset = PreprocessedDataset(features, exps)
-
+    dir=args.embed_dir
+    train_dataset = CLUSTER_BRAIN(emb_folder=dir,train=True,split=True)
+    train_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False,num_workers=3,pin_memory=True)
     # print(f'Using fold {args.fold}')
-    print(f'train: {len(preprocessed_train_dataset)}')
+    print(f'train: {len(train_dataset)}')
     # print(f'valid: {len(val_set)}')
 
-    dummy_dataset= Dummy(train=True)
-    batch_sampler = CustomBatchSampler(dummy_dataset, shuffle=True)
-    train_dataLoader = DataLoader(preprocessed_train_dataset, batch_size=args.batch_size, shuffle=batch_sampler,num_workers=args.n_workers,pin_memory=True)    
     
     
     model = WiKG(dim_in=args.embed_dim, dim_hidden=1024, topk=6, n_classes=args.n_classes, agg_type='bi-interaction', dropout=0.3, pool='mean').to(device)
@@ -215,11 +214,8 @@ def main(args):
                             ,constant_predictor_lr=False
 )
     
-    data= np.load('./preprocess/preprocessed_val.npz')
-    features = torch.from_numpy(data['features'])
-    exps=data['exps']
-    preprocessed_val_dataset = PreprocessedDataset(features, exps)
-    val_loader = DataLoader(preprocessed_val_dataset, batch_size=4096, num_workers=args.n_workers, shuffle=False)
+    val_dataset = CLUSTER_BRAIN(emb_folder=dir,train=False,split=True)
+    val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False,num_workers=3,pin_memory=True)
     output_dir = args.save_dir
     
     # val_set = DATA_BRAIN(train=False,r=int(args.patch_size/2), device=args.device)

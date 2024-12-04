@@ -1,4 +1,9 @@
 # sleep 540
 
-python3 train.py --batch_size 512 --patch_size 100
-python get_embedding.py --test_model 100-199
+CUDA_LAUNCH_BLOCKING=1 python train.py --batch_size 2048 --patch_size 80 \
+ --embed_dir 'D:/DATA/Gene_expression/Crunch/preprocessed' \
+ --device 'cpu' \
+ --demo True \
+ --local True
+
+# python get_embedding.py --test_model 100-199

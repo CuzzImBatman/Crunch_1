@@ -2,7 +2,6 @@ import os
 import spatialdata as sd
 import pickle
 import torchvision.transforms as transforms
-from PIL import Image
 import numpy as np
 import torch
 from tqdm import tqdm

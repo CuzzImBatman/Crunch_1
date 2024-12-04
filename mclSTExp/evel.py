@@ -31,9 +31,9 @@ NAMES = ['DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I']
 
 #     return indices.cpu().numpy()
 
-def find_matches(spot_embeddings, query_embeddings, top_k=1, batch_size=1000):
+def find_matches(spot_embeddings, query_embeddings, top_k=1, batch_size=1000,device='cuda:0'):
     # Convert embeddings to tensors and normalize them
-    spot_embeddings = torch.tensor(spot_embeddings).to(torch.float32)
+    spot_embeddings = torch.tensor(spot_embeddings, dtype=torch.float32, device=device)
     spot_embeddings = F.normalize(spot_embeddings, p=2, dim=-1)
     
     # Prepare a list to store the indices of top matches for each query
@@ -43,7 +43,11 @@ def find_matches(spot_embeddings, query_embeddings, top_k=1, batch_size=1000):
     batch_size=256
     for i in range(0, len(query_embeddings), batch_size):
         # Ensure we do not go out of bounds
-        batch_query_embeddings = torch.tensor(query_embeddings[i:min(i+batch_size, len(query_embeddings))]).to(torch.float32)
+        batch_query_embeddings = torch.tensor(
+            query_embeddings[i:min(i+batch_size, len(query_embeddings))],
+            dtype=torch.float32,
+            device=device
+        )
         batch_query_embeddings = F.normalize(batch_query_embeddings, p=2, dim=-1)
 
         # Compute dot product similarity
@@ -60,7 +64,7 @@ def find_matches(spot_embeddings, query_embeddings, top_k=1, batch_size=1000):
 
 def get_sdata(name):
         path= f'../data/{name}.zarr'
-
+        path=f'F:/data/crunch_large/zip_server/{name}.zarr'
         # print(path)
         sdata = sd.read_zarr(path)
         return sdata
@@ -102,6 +106,7 @@ def main():
     mae_list = []
     for test_name in NAMES:
         save_path = f"./model_result/{patch_size}/{epoch}/"
+        
         train_spot_embeddings = np.load(save_path + f"train_spot_embeddings.npy")
         # test_spot_embeddings = [np.load(save_path + f"test_spot_embeddings_{test_name}.npy")]
 
@@ -188,15 +193,18 @@ def main():
 
         mse = mean_squared_error(true, pred)
         mse_list.append(mse)
-        print("Mean Squared Error (MSE): ", mse)
+        print(f"Mean Squared Error (MSE) {test_name}: ", mse)
         mae = mean_absolute_error(true, pred)
         mae_list.append(mae)
-        print("Mean Absolute Error (MAE): ", mae)
+        print(f"Mean Absolute Error (MAE) {test_name}: ", mae)
+        print(f"avg heg pcc {test_name}: {np.mean(heg_pcc):.4f}")
+        print(f"avg hvg pcc {test_name}: {np.mean(hvg_pcc):.4f}")
+        
 
-        print(f"avg heg pcc: {np.mean(heg_pcc_list):.4f}")
-        print(f"avg hvg pcc: {np.mean(hvg_pcc_list):.4f}")
-        print(f"Mean Squared Error (MSE): {np.mean(mse_list):.4f}")
-        print(f"Mean Absolute Error (MAE): {np.mean(mae_list):.4f}")
+    print(f"avg heg pcc: {np.mean(heg_pcc_list):.4f}")
+    print(f"avg hvg pcc: {np.mean(hvg_pcc_list):.4f}")
+    print(f"Mean Squared Error (MSE): {np.mean(mse_list):.4f}")
+    print(f"Mean Absolute Error (MAE): {np.mean(mae_list):.4f}")
 
   
 if __name__ == '__main__':

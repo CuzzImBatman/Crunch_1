@@ -21,13 +21,13 @@ NAMES = ['DC1','DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I']
 #         cell_item['center']=[int(centroid[1]), int(centroid[0])]
 #         cell_list.append(cell_item)
 #     pickle.dump(cell_list,f)
-for name in NAMES:
-    pre_load_path= './pre_load'
+for name in NAMES[7:]:
+    pre_load_path= '../../pre_load'
     
-    with open(f'./pre_load/{name}_cells.pkl','rb') as f:
+    with open(f'{pre_load_path}/{name}_cells.pkl','rb') as f:
                 cell_list= pickle.load(f)
     sdata = sd.read_zarr(f"{dir}/{name}.zarr")
-    r=10
+    r=40
     im= sdata['HE_registered'].to_numpy()
     patches_list = []  # Initialize an empty list to store patches
     for props in cell_list:
@@ -72,10 +72,12 @@ for name in NAMES:
         # except:
         #     print( minr,maxr,minc,maxc, im.shape)
         
-        patch = transforms.ToTensor()(patch)
+        # patch = transforms.ToTensor()(patch)
         patches_list.append(patch)
-    patches_tensor= torch.stack(patches_list)
-    torch.save(patches_tensor,f'D:/DATA/Gene_expression/Crunch/patches/20/{name}.pt')
+    patches_tensor= np.stack(patches_list)
+    save_dir= f'D:/DATA/Gene_expression/Crunch/patches/{r*2}'
+    os.makedirs(save_dir,exist_ok=True)
+    np.save(f'{save_dir}/{name}.npy',patches_tensor)
     im=None
     patches_tensor=None
     sdata=None

@@ -108,9 +108,9 @@ def parse():
     parser.add_argument('--n_classes', type=int, default=460)
     parser.add_argument('--start_epoch', default=0, type=int, metavar='N',
                         help='start epoch')
-    parser.add_argument('--save_dir', default='./', help='path where to save')
+    parser.add_argument('--save_dir', default='.', help='path where to save')
     parser.add_argument('--encoder_name', default='vitsmall', help='fixed encoder name, for saving folder name')
-
+    parser.add_argument('--embeb_dir', default='./preprocess', type=str, help='fixed encoder name, for saving folder name')
     return parser.parse_args()
 
 def save_checkpoint(epoch, model, optimizer,scheduler, args, filename="checkpoint.pth.tar"):
@@ -128,7 +128,7 @@ def save_checkpoint(epoch, model, optimizer,scheduler, args, filename="checkpoin
 
 def load_checkpoint(epoch, model, optimizer,scheduler,args):
     filename=f"checkpoint_epoch_{epoch}.pth.tar"
-    dir=f"{args.save_dir}model_result/{args.patch_size}"
+    dir=f"{args.save_dir}/model_result/{args.patch_size}"
     checkpoint = torch.load(f"{dir}/{filename}")
     model.load_state_dict(checkpoint['model_state_dict'])
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
@@ -173,9 +173,9 @@ def main(args):
     # train_dataLoader = DataLoader(preprocessed_train_dataset, batch_size=args.batch_size, shuffle=batch_sampler,num_workers=args.n_workers,pin_memory=True)    
     
     model = WiKG(dim_in=args.embed_dim, dim_hidden=1024, topk=6, n_classes=args.n_classes, agg_type='bi-interaction', dropout=0.3, pool='mean').to(device)
-    epoch =587
+    epoch =179
     filename=f"checkpoint_epoch_{epoch}.pth.tar"
-    dir=f"{args.save_dir}model_result/{args.patch_size}"
+    dir=f"{args.save_dir}model_result/{args.patch_size}_GAT"
     checkpoint = torch.load(f"{dir}/{filename}", map_location ='cuda:0')
     model.load_state_dict(checkpoint['model_state_dict'])
     # data= np.load('./preprocess/preprocessed_val.npz')

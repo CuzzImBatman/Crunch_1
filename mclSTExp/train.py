@@ -1,8 +1,8 @@
 import argparse
 import torch
 import os
-from dataset import DATA_BRAIN,Dummy
-from model import mclSTExp_Attention
+from dataset import DATA_BRAIN,Dummy,CLUSTER_BRAIN
+from model import mclSTExp_Attention, mclSTExp_Attention_Pretrain
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 from utils import AvgMeter, get_lr
@@ -27,9 +27,14 @@ def generate_args():
     parser.add_argument('--dataset', type=str, default='crunch', help='dataset')  
     parser.add_argument('--encoder_name', type=str, default='densenet121', help='image encoder')
     parser.add_argument('--path_save', type=str, default='.', help='model saved path')
-    parser.add_argument('--resume', type=str, default=False, help='resume training')
+    parser.add_argument('--resume', type=bool, default=False, help='resume training')
     parser.add_argument('--patch_size', type=int, default=100, help='patch_size')
     parser.add_argument('--test_model', type=str, default='64-99', help='patch_size(n)-epoch(e)')
+    parser.add_argument('--embed_dir', type=str, default='/content/preprocessed')
+    parser.add_argument('--demo', type=bool, default=False)
+    parser.add_argument('--device', type=str, default='cuda:0')
+    parser.add_argument('--local', type=bool, default=False)
+
     args = parser.parse_args()
     return args
 
@@ -87,14 +92,24 @@ def train(model, train_dataLoader, optimizer,scheduler, epoch):
 def load_data(args):
     
         print(f'load dataset: {args.dataset}')
-        train_dataset = DATA_BRAIN(train=True,r=int(args.patch_size/2), fold=args.fold)
-        dummy_dataset= Dummy(train=True)
-        batch_sampler = CustomBatchSampler(dummy_dataset, shuffle=True)
+        # train_dataset = DATA_BRAIN(train=True,r=int(args.patch_size/2), fold=args.fold)
+        # dummy_dataset= Dummy(train=True)
+        # batch_sampler = CustomBatchSampler(dummy_dataset, shuffle=True)
+        # # print('hellooooooooooooooooooooooooooo')
+        # train_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=batch_sampler,num_workers=3,pin_memory=True)
+        NAMES=['DC1','DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I']
+        dir=args.embed_dir
+        if args.demo == True:
+            NAMES=NAMES[:2]
+        train_dataset = CLUSTER_BRAIN(emb_folder=dir,train=True,split=True,name_list=NAMES)
+        # dummy_dataset= Dummy(train=True)
+        # batch_sampler = CustomBatchSampler(dummy_dataset, shuffle=True)
         # print('hellooooooooooooooooooooooooooo')
-        train_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=batch_sampler,num_workers=3,pin_memory=True)
-        # test_dataset = DATA_BRAIN(train=False, fold=args.fold)
-        # test_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False)
-        # return train_dataLoader
+        train_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False,num_workers=3,pin_memory=True)
+        if args.local== True:
+            print('local run')
+            train_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False,pin_memory=False)
+        
         test_dataLoader=None
         return train_dataLoader, test_dataLoader
 
@@ -143,7 +158,7 @@ def main():
 
     
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    model = mclSTExp_Attention(encoder_name=args.encoder_name,
+    model = mclSTExp_Attention_Pretrain(encoder_name=args.encoder_name,
                                 spot_dim=args.dim,
                                 temperature=args.temperature,
                                 image_dim=args.image_embedding_dim,

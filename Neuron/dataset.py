@@ -83,9 +83,9 @@ class NeuronData(Dataset):
             # with open(f'{preload_dir}/{name}_cells.pkl','rb') as f:
             #     cell_list_org= pickle.load(f)
             if split== True:
-                cluster_dir=f'./cluster/train/cluster_data_split'
+                cluster_dir=f'../cluster/train/cluster_data_split'
             elif train == False:
-                cluster_dir=f'./cluster/validation'
+                cluster_dir=f'../cluster/validation'
                 
             with open(f'{cluster_dir}/{name}_cells.pkl','rb') as f:
                 cell_list_cluster = pickle.load(f)

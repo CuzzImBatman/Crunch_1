@@ -247,3 +247,41 @@ class mclSTExp_Attention(nn.Module):
         return loss.mean()
 
 
+class mclSTExp_Attention_Pretrain(nn.Module):
+    def __init__(self,encoder_name, temperature, image_dim, spot_dim, projection_dim, heads_num, heads_dim, head_layers, dropout=0.):
+        super().__init__()
+        self.x_embed = nn.Embedding(65536, spot_dim)
+        self.y_embed = nn.Embedding(65536, spot_dim)
+        
+        self.spot_encoder = nn.Sequential(
+            *[attn_block(spot_dim, heads=heads_num, dim_head=heads_dim, mlp_dim=spot_dim, dropout=0.) for _ in
+              range(head_layers)])
+
+        self.image_projection = ProjectionHead(embedding_dim=image_dim, projection_dim=projection_dim)
+        self.spot_projection = ProjectionHead(embedding_dim=spot_dim, projection_dim=projection_dim)
+
+        self.temperature = temperature
+
+    def forward(self, batch):
+        image_features = batch["feature"]
+        spot_feature = batch["expression"]
+        image_embeddings = self.image_projection(image_features)
+
+        x = batch["position"][:, 0].long()
+        y = batch["position"][:, 1].long()
+        centers_x = self.x_embed(x)
+        centers_y = self.y_embed(y)
+
+        spot_features = spot_feature + centers_x + centers_y
+        spot_features = spot_features.unsqueeze(dim=0)
+
+        spot_embeddings = self.spot_encoder(spot_features)
+        spot_embeddings = self.spot_projection(spot_embeddings)
+        spot_embeddings = spot_embeddings.squeeze(dim=0)
+
+        cos_smi = (spot_embeddings @ image_embeddings.T) / self.temperature
+        label = torch.eye(cos_smi.shape[0], cos_smi.shape[1]).cuda()
+        spots_loss = F.cross_entropy(cos_smi, label)
+        images_loss = F.cross_entropy(cos_smi.T, label.T)
+        loss = (images_loss + spots_loss) / 2.0
+        return loss.mean()
