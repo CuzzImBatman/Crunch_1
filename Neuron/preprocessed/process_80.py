@@ -9,6 +9,7 @@ sys.path.append('../')
 from dataset import DataGenerator
 from torch.utils.data import Dataset, DataLoader
 from model import ImageEncoder
+from torch.utils.data import Subset
 
 dir = f'D:/DATA/Gene_expression/Crunch/patches/80'
 save_dir='D:/DATA/Gene_expression/Crunch/preprocessed/80'
@@ -85,27 +86,8 @@ from collections import defaultdict
 local_index = 0
 label_map = defaultdict(list)
 
-for name in NAMES[1:]:
-    emb_stack=[]
-    dataset = DataGenerator(tensor_folder,list=[name])
-    dataloader = DataLoader(dataset, batch_size=200, shuffle=False)
-    vq_stack=[]
-    
-    with torch.no_grad():
-        i=0
-        for batch in dataloader:
-            batch = batch.to(device)
-            emb= encoder(batch) 
-            emb_stack.append(emb.cpu())
-            i+=1
-            print(i)
-    
-    emb_stack = torch.cat(emb_stack, dim=0)
-    print(emb_stack.shape)
-    emb_stack=emb_stack.numpy()
+for name in NAMES[5:]:
     pre_load_path = '../../pre_load'
-    
-    # Load cell list
     with open(f'{pre_load_path}/{name}_cells.pkl', 'rb') as f:
         cell_list = pickle.load(f)
 
@@ -118,10 +100,47 @@ for name in NAMES[1:]:
     test_mask = np.array(labels) == 'test'
     validation_mask = np.array(labels) == 'validation'
     
+    
+    dataset = DataGenerator(tensor_folder,list=[name])
+    # print(dataset[[0,1,2]],indices[train_mask].shape)
+    
+    comb_set={}
+    # comb_set['train']=dataset[indices[train_mask]]
+    # comb_set['validation']=dataset[indices[validation_mask]]
+    # comb_set['test']=dataset[indices[test_mask]]
+    
+    comb_set['train']=Subset(dataset, indices[train_mask])
+    comb_set['validation']=Subset(dataset, indices[validation_mask])
+    comb_set['test']=Subset(dataset, indices[test_mask])
+    set_type=['test','validation','train']
+    for label in set_type:
+        emb_stack=[]
+        # if label== 'test' and name== NAMES[5]:
+        #     continue
+        dataloader = DataLoader(comb_set[label], batch_size=200, shuffle=False)
+        
+        with torch.no_grad():
+            i=0
+            for batch in dataloader:
+                batch = batch.to(device)
+                emb= encoder(batch) 
+                emb_stack.append(emb.cpu())
+                i+=1
+                if i%10 ==0:
+                    print(i)
+        
+        emb_stack = torch.cat(emb_stack, dim=0)
+        print(label,emb_stack.shape)
+        emb_stack=emb_stack.numpy()
+        os.makedirs(f'{save_dir}/{label}',exist_ok=True)
+        np.save(f'{save_dir}/{label}/{name}.npy',emb_stack)
+    # Load cell list
+    
+    
     # Use boolean masks to extract corresponding embeddings
-    train_stack = emb_stack[indices[train_mask]]
-    test_stack = emb_stack[indices[test_mask]]
-    validation_stack = emb_stack[indices[validation_mask]]
+    # train_stack = emb_stack[indices[train_mask]]
+    # test_stack = emb_stack[indices[test_mask]]
+    # validation_stack = emb_stack[indices[validation_mask]]
     
     # Optionally, add to a dictionary for further use
     # label_map[name].append({
@@ -131,17 +150,17 @@ for name in NAMES[1:]:
     # })
     
     # Update local index
-    local_index += len(cell_list)
-    os.makedirs(f'{save_dir}/train',exist_ok=True)
-    os.makedirs(f'{save_dir}/test',exist_ok=True)
-    os.makedirs(f'{save_dir}/validation',exist_ok=True)
+    # local_index += len(cell_list)
+    # os.makedirs(f'{save_dir}/train',exist_ok=True)
+    # os.makedirs(f'{save_dir}/test',exist_ok=True)
+    # os.makedirs(f'{save_dir}/validation',exist_ok=True)
     
     
-    local_index+= len(cell_list)
-    train_stack= np.vstack(train_stack)
-    # print(train_stack.shape)
-    test_stack= np.vstack(test_stack)
-    validation_stack= np.vstack(validation_stack)
-    np.save(f'{save_dir}/train/{name}.npy',train_stack)
-    np.save(f'{save_dir}/test/{name}.npy',test_stack)
-    np.save(f'{save_dir}/validation/{name}.npy',validation_stack)
+    # local_index+= len(cell_list)
+    # train_stack= np.vstack(train_stack)
+    # # print(train_stack.shape)
+    # test_stack= np.vstack(test_stack)
+    # validation_stack= np.vstack(validation_stack)
+    # np.save(f'{save_dir}/train/{name}.npy',train_stack)
+    # np.save(f'{save_dir}/test/{name}.npy',test_stack)
+    # np.save(f'{save_dir}/validation/{name}.npy',validation_stack)

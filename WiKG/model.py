@@ -409,6 +409,37 @@ def build_edge_index(topk_index):
     edge_index = torch.stack([src, dst], dim=0)
     
     return edge_index
+import numpy as np
+
+def create_edge_index(pos, k=6):
+    """
+    Create edge_index for a graph based on the k-nearest neighbors.
+
+    Parameters:
+    pos (torch.Tensor): Tensor of shape (n, 2) representing positions of nodes.
+    k (int): Number of nearest neighbors to connect to each node.
+
+    Returns:
+    edge_index (torch.Tensor): Tensor of shape (2, num_edges) representing edges.
+    """
+    # Convert positions to NumPy for efficient computation
+    pos_np = pos.cpu().numpy() if isinstance(pos, torch.Tensor) else pos
+    
+    # Compute pairwise distances
+    n = pos_np.shape[0]
+    distances = np.linalg.norm(pos_np[:, None, :] - pos_np[None, :, :], axis=-1)
+    
+    # Find k-nearest neighbors for each node (excluding itself)
+    neighbors = np.argsort(distances, axis=1)[:, 1:k+1]
+    
+    # Create edges
+    source = np.repeat(np.arange(n), k)
+    target = neighbors.flatten()
+    
+    # Convert to PyTorch tensor
+    edge_index = torch.tensor(np.array([source, target]), dtype=torch.long)
+    
+    return edge_index
 class WiKG(nn.Module):
     def __init__(self, dim_in=1024, dim_hidden=512, topk=6, n_classes=2, agg_type='bi-interaction', dropout=0.3, pool='attn'):
         super().__init__()
@@ -472,13 +503,12 @@ class WiKG(nn.Module):
 
         # x = self.image_encoder(x)
         #-------------
-        x=X['feature']
-        pos=X['position']
+        x=X['feature'].to('cuda')
+        pos=X['position'].to('cuda')
         x = self._fc1(x).unsqueeze(0)    # [B, N, C]
         # x = self._fc1(x) #for testing python model.py
         #--------------
-        
-        x = (x + x.mean(dim=1, keepdim=True)) * 0.5
+        edge_index= create_edge_index(pos,k=6)
 
         
         
@@ -491,18 +521,17 @@ class WiKG(nn.Module):
         
         # print(h.shape)
         # Remove pooling; process each node separately
-        h = self.norm(h)  # Normalize per-node embeddings
         #----------------
-        # print(h.shape)
-        edge_index =build_edge_index(topk_index=topk_index)
-        h = h.squeeze(0)  # Remove batch dimension for GAT
-        h = self.gat(h, edge_index)
+        # print(x.shape)
+        x=x.squeeze(0)
+        edge_index = edge_index.to(x.device)
+
+        x = self.gat(x, edge_index)
         # h = self.fc(h).squeeze(0) 
         
         #-----------------
-        h = self.fc(h).squeeze(0)  # Classify each node
-
-        return h
+        x = self.fc(x).squeeze(0)  # Classify each node
+        return x
 
             
 if __name__ == "__main__":

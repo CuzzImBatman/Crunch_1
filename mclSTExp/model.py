@@ -14,6 +14,9 @@ class PreNorm(nn.Module):
         self.fn = fn
 
     def forward(self, x, **kwargs):
+        x = x.to(torch.float32)
+        # print(x.dtype)  # Check dtype of input tensor
+        # print(next(self.fn.parameters()).dtype)
         return self.fn(self.norm(x), **kwargs)
 
 
@@ -265,17 +268,23 @@ class mclSTExp_Attention_Pretrain(nn.Module):
     def forward(self, batch):
         image_features = batch["feature"]
         spot_feature = batch["expression"]
+        
         image_embeddings = self.image_projection(image_features)
 
         x = batch["position"][:, 0].long()
         y = batch["position"][:, 1].long()
         centers_x = self.x_embed(x)
         centers_y = self.y_embed(y)
-
+        # print(batch["expression"].shape,x.shape,y.shape,centers_x.shape, centers_y.shape )
+        spot_feature = spot_feature.squeeze(1) 
+        # print(spot_feature.shape,x.shape,y.shape,centers_x.shape, centers_y.shape )
         spot_features = spot_feature + centers_x + centers_y
         spot_features = spot_features.unsqueeze(dim=0)
-
+        # spot_features = spot_features.to(torch.double)
         spot_embeddings = self.spot_encoder(spot_features)
+        # print( spot_embeddings.shape)
+        # print(spot_embeddings.dtype)  # Check current dtype
+        spot_embeddings = spot_embeddings.to(torch.float32)
         spot_embeddings = self.spot_projection(spot_embeddings)
         spot_embeddings = spot_embeddings.squeeze(dim=0)
 

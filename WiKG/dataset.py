@@ -801,14 +801,18 @@ class CLUSTER_BRAIN(torch.utils.data.Dataset):
             idx = index - self.cumlen[i - 1]
         # print(index,i,len(self.loc_dict[self.id2name[i]]))
         emb_cell= self.emb_cells_dict[self.id2name[i]][idx]
-        valid_cell_list_cluster= self.valid_cell_list_cluster_dict[self.id2name[i]][idx]
+        # print(len(self.valid_cell_list_cluster_dict[self.id2name[i]]),idx,self.id2name[i])
+        valid_cell_list_cluster= self.valid_cell_list_cluster_dict[self.id2name[i]].iloc[idx]
         # print(center)
-        exps=  np.array([valid_cell_list_cluster['counts'].to_numpy()])
+        exps=  np.array([valid_cell_list_cluster['counts']])
         # print( centroid_exps.shape,index)
         normalized_counts = exps / exps.sum(axis=1, keepdims=True) * 100
         exps = np.log1p(normalized_counts)
         item["feature"] = emb_cell
-        item["position"] = torch.Tensor(valid_cell_list_cluster[['x', 'y']].to_numpy())
+        x,y=valid_cell_list_cluster[['x', 'y']]
+        # x=int(x)
+        # y=int(y)
+        item["position"] = torch.Tensor((x,y))
         item["expression"] = exps
         item['id']=i-1
         return item

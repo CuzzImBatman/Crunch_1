@@ -62,10 +62,10 @@ def train_one_epoch(model, train_loader, optimizer,scheduler, device, epoch):
         optimizer.zero_grad()
         label= batch['expression']
         label = np.array(label, dtype=np.float32)
-        label = torch.from_numpy(label)
-        data = data.to(device)
+        label = torch.from_numpy(label).squeeze(1)
+        batch = batch
         label = label.to(device)
-        pred = model(data)
+        pred = model(batch)
         # print(label.shape,pred.shape)
         loss = F.mse_loss(pred, label)
         loss.backward()
@@ -88,10 +88,13 @@ def val_one_epoch(model, val_loader, device, data_type='val'):
     elif data_type == 'test':
         val_loader = tqdm(val_loader, file=sys.stdout, ncols=100, colour='green')
 
-    for i, (data, label) in enumerate(val_loader):
-        data = data.to(device)
+    for i, batch in enumerate(val_loader):
+        label= batch['expression']
+        label = np.array(label, dtype=np.float32)
+        label = torch.from_numpy(label).squeeze(1)
+        batch = batch
         label = label.to(device)
-        output = model(data)
+        output = model(batch)
         labels = torch.cat([labels, label], dim=0)
         preds = torch.cat([preds, output.detach()], dim=0)
 
@@ -132,19 +135,19 @@ def parse():
     parser.add_argument('--batch_size', type=int, default=4096, help='patch_size')
 
     parser.add_argument('--embed_dim', type=int, default=1024, help="The dimension of instance-level representations")
-    parser.add_argument('--patch_size', type=int, default=112, help='patch_size')
+    parser.add_argument('--patch_size', type=int, default=80, help='patch_size')
     parser.add_argument('--utils', type=str, default=None, help='utils path')
     parser.add_argument('--device', type=str, default='cuda:0', help='device to use for training / testing')
     parser.add_argument('--n_workers', type=int, default=0)
     parser.add_argument('--seed', default=2023, type=int)  # 3407, 1234, 2023
     parser.add_argument('--n_classes', type=int, default=460)
-    parser.add_argument('--fold', type=int, default=0)
     parser.add_argument('--start_epoch', default=0, type=int, metavar='N',
                         help='start epoch')
-    parser.add_argument('--save_dir', default='./', help='path where to save')
+    parser.add_argument('--save_dir', default='.', help='path where to save')
     parser.add_argument('--encoder_name', default='vitsmall', help='fixed encoder name, for saving folder name')
     parser.add_argument('--embed_dir', type=str, default='/content/preprocessed')
-
+    parser.add_argument('--demo', type=bool, default=False)
+    parser.add_argument('--local', type=bool, default=False)
     return parser.parse_args()
 
 def save_checkpoint(epoch, model, optimizer,scheduler, args, filename="checkpoint.pth.tar"):
@@ -162,7 +165,7 @@ def save_checkpoint(epoch, model, optimizer,scheduler, args, filename="checkpoin
 
 def load_checkpoint(epoch, model, optimizer,scheduler,args):
     filename=f"checkpoint_epoch_{epoch}.pth.tar"
-    dir=f"{args.save_dir}model_result/{args.patch_size}"
+    dir=f"{args.save_dir}/model_result/{args.patch_size}"
     checkpoint = torch.load(f"{dir}/{filename}")
     model.load_state_dict(checkpoint['model_state_dict'])
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
@@ -194,12 +197,22 @@ def main(args):
     # np.savez('preprocessed_val.npz', features=features_np, exps=exps)
     # print(features_np)
     dir=args.embed_dir
-    train_dataset = CLUSTER_BRAIN(emb_folder=dir,train=True,split=True)
-    train_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False,num_workers=3,pin_memory=True)
+    NAMES=['DC1','DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I']
+    if args.demo== True:
+        NAMES=NAMES[:2]
+    train_dataset = CLUSTER_BRAIN(emb_folder=dir,train=True,split=True,name_list=NAMES)
     # print(f'Using fold {args.fold}')
     print(f'train: {len(train_dataset)}')
     # print(f'valid: {len(val_set)}')
-
+    val_dataset = CLUSTER_BRAIN(emb_folder=dir,train=False,split=True,name_list=NAMES)
+    
+    train_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False,num_workers=3,pin_memory=True)
+    val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False,num_workers=3,pin_memory=True)
+    if args.local ==True:
+        print('local run')
+        train_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False,pin_memory=False)
+        val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False,pin_memory=False)
+    output_dir = args.save_dir
     
     
     model = WiKG(dim_in=args.embed_dim, dim_hidden=1024, topk=6, n_classes=args.n_classes, agg_type='bi-interaction', dropout=0.3, pool='mean').to(device)
@@ -214,9 +227,7 @@ def main(args):
                             ,constant_predictor_lr=False
 )
     
-    val_dataset = CLUSTER_BRAIN(emb_folder=dir,train=False,split=True)
-    val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False,num_workers=3,pin_memory=True)
-    output_dir = args.save_dir
+    
     
     # val_set = DATA_BRAIN(train=False,r=int(args.patch_size/2), device=args.device)
     # val_loader = DataLoader(val_set, batch_size=1024, num_workers=args.n_workers, shuffle=False)

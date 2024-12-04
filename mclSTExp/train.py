@@ -78,13 +78,13 @@ def train(model, train_dataLoader, optimizer,scheduler, epoch):
     tqdm_train = tqdm(train_dataLoader, total=len(train_dataLoader))
     for batch in tqdm_train:
         batch = {k: v.cuda() for k, v in batch.items() if
-                 k == "image" or k == "expression" or k == "position" or k == "id"}
+                 k == "feature" or k == "expression" or k == "position" or k == "id"}
         loss = model(batch)
         optimizer.zero_grad()
         loss.backward()
         scheduler.step()
         optimizer.step()
-        count = batch["image"].size(0)
+        count = batch["feature"].size(0)
         loss_meter.update(loss.item(), count)
         tqdm_train.set_postfix(train_loss=loss_meter.avg, lr=get_lr(optimizer), epoch=epoch)
 
@@ -109,7 +109,7 @@ def load_data(args):
         if args.local== True:
             print('local run')
             train_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False,pin_memory=False)
-        
+        print(len(train_dataset))
         test_dataLoader=None
         return train_dataLoader, test_dataLoader
 
