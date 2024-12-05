@@ -736,6 +736,8 @@ class CLUSTER_BRAIN(torch.utils.data.Dataset):
         print(f'Type: {dataset_type}')
         valid_cell_list_cluster_dict={}
         emb_cells_dict={}
+        pos_dict={}
+        exps_dict={}
         lenngths=[]
         for name in NAMES:
             preload_dir=f'../pre_load'
@@ -765,6 +767,7 @@ class CLUSTER_BRAIN(torch.utils.data.Dataset):
             emb_cells= emb_cells[cell_list_cluster[group] != -1] # len of emb_cells == len of valid_cell_list_cluster
             # print(emb_cells.shape)
             # print(len(emb_cells), len( valid_cell_list_cluster))
+            cell_list_cluster=None
             if dataset_type != None:
                 if dataset_type ==1 :
                     emb_cells               =emb_cells[valid_cell_list_cluster[group].to_numpy() == 1]
@@ -772,17 +775,25 @@ class CLUSTER_BRAIN(torch.utils.data.Dataset):
                 elif dataset_type ==0:
                     emb_cells               =emb_cells[valid_cell_list_cluster[group].to_numpy() == 0]
                     valid_cell_list_cluster =valid_cell_list_cluster[valid_cell_list_cluster[group] == 0]
-            
+            cell_counts= np.stack(valid_cell_list_cluster['counts'].to_numpy())
+        # # print(cell_counts.shape)
+            normalized_counts = cell_counts / cell_counts.sum(axis=1, keepdims=True) * 100
+            cell_exps = np.log1p(normalized_counts)
+            exps_dict[name]   =cell_exps
             lenngths.append(len(emb_cells))
+            pos= valid_cell_list_cluster[['x', 'y']].to_numpy()
+            pos_dict[name]  = pos
             # len of valid_cell_list_cluster == len of  emb_cells
-            valid_cell_list_cluster_dict[name]   =valid_cell_list_cluster
+            # valid_cell_list_cluster_dict[name]   =valid_cell_list_cluster
             emb_cells_dict[name]            =emb_cells
+            # valid_cell_list_cluster_dict=None
+            # valid_cell_list_cluster=None
             
-            
-              
+        self.exps_dict= exps_dict
+        self.pos_dict= pos_dict
         self.emb_cells_dict             =emb_cells_dict
         self.lengths                    =lenngths
-        self.valid_cell_list_cluster_dict    =valid_cell_list_cluster_dict
+        # self.valid_cell_list_cluster_dict    =valid_cell_list_cluster_dict
         self.cumlen =np.cumsum(self.lengths)
         self.id2name = dict(enumerate(NAMES))
         
@@ -802,14 +813,16 @@ class CLUSTER_BRAIN(torch.utils.data.Dataset):
         # print(index,i,len(self.loc_dict[self.id2name[i]]))
         emb_cell= self.emb_cells_dict[self.id2name[i]][idx]
         # print(len(self.valid_cell_list_cluster_dict[self.id2name[i]]),idx,self.id2name[i])
-        valid_cell_list_cluster= self.valid_cell_list_cluster_dict[self.id2name[i]].iloc[idx]
+        # valid_cell_list_cluster= self.valid_cell_list_cluster_dict[self.id2name[i]].iloc[idx]
+        exps= self.exps_dict[self.id2name[i]][idx]
         # print(center)
-        exps=  np.array([valid_cell_list_cluster['counts']])
-        # print( centroid_exps.shape,index)
-        normalized_counts = exps / exps.sum(axis=1, keepdims=True) * 100
-        exps = np.log1p(normalized_counts)
+        # exps=  np.array([valid_cell_list_cluster['counts']])
+        # # print( centroid_exps.shape,index)
+        # normalized_counts = exps / exps.sum(axis=1, keepdims=True) * 100
+        # exps = np.log1p(normalized_counts)
         item["feature"] = emb_cell
-        x,y=valid_cell_list_cluster[['x', 'y']]
+        # x,y=valid_cell_list_cluster[['x', 'y']]
+        x,y= self.pos_dict[self.id2name[i]][idx]
         # x=int(x)
         # y=int(y)
         item["position"] = torch.Tensor((x,y))

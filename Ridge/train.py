@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 import torch.backends.cudnn as cudnn
-from dataset import PreprocessedDataset
+from dataset import CLUSTER_BRAIN
 from pathlib import Path
 # from lr_scheduler import LR_Scheduler
 from torch.utils.data import Sampler
@@ -185,36 +185,7 @@ def compute_metrics(y_test, preds_all, genes=None):
     }
 
     return results
-class Dummy(torch.utils.data.Dataset):
-    def __init__(self, train=True):
-        split_path= "./train_split"
-        sample_names = ['DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I']
-        names= sample_names
-        lenghts=[]
-        for i in names:
-            split_path= "./train_split"
-            split_train_binary=[]
-            with open(f'{split_path}/{i}_train.pkl','rb') as f:  # Python 3: open(..., 'rb')
-                split_train_binary = pickle.load(f)
-            if train:
-                lenghts.append(int(len(split_train_binary)*0.9))
-            else:
-                lenghts.append(len(split_train_binary)-int(len(split_train_binary)*0.9))
-        self.cumlen = np.cumsum( lenghts)
 
-    def __getitem__(self, index):
-        i = 0
-        item = {}
-        # print(index)
-        while index >= self.cumlen[i]:
-            i += 1
-        idx = index
-        if i > 0:
-            idx = index - self.cumlen[i - 1]
-        item['id']=i-1
-        return item
-    def __len__(self):
-        return self.cumlen[-1]
 class RidgeRegression(nn.Module):
     def __init__(self, input_dim, output_dim, alpha=1.0):
         super(RidgeRegression, self).__init__()
@@ -298,6 +269,10 @@ def parse():
                         help='start epoch')
     parser.add_argument('--save_dir', default='./', help='path where to save')
     parser.add_argument('--encoder_name', default='vitsmall', help='fixed encoder name, for saving folder name')
+    parser.add_argument('--embed_dir', type=str, default='/content/preprocessed')
+    parser.add_argument('--demo', type=bool, default=False)
+    parser.add_argument('--local', type=bool, default=False)
+    parser.add_argument('--encoder_mode', type=bool, default=False)
 
     return parser.parse_args()
 
@@ -308,117 +283,74 @@ def main(args):
     print(args)
     device = torch.device(args.device if torch.cuda.is_available() else 'cpu')
 
+    # Set random seeds for reproducibility
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
     cudnn.benchmark = True
 
-    utils_dir = args.utils
-    # encoder= ImageEncoder().to(args.device)
-    # train_dataset = DATA_BRAIN(train=True,r=int(args.patch_size/2), device=args.device)
-    # features, exps = preprocess_dataset(train_dataset, encoder, args.device)
-    # features_np = features.numpy()
-    # np.savez('preprocessed_train.npz', features=features_np, exps=exps)
-    # val_set = DATA_BRAIN(train=False,r=int(args.patch_size/2), device=args.device)
-    # features, exps = preprocess_dataset(val_set, encoder, args.device)
-    # features_np = features.numpy()
+    # Dataset and DataLoader preparation
+    dir = args.embed_dir
+    NAMES = ['DC1', 'DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I']
+    if args.demo:
+        NAMES = NAMES[:2]
+
+    train_dataset = CLUSTER_BRAIN(emb_folder=dir, train=True, split=True, name_list=NAMES)
+    print(f"Train dataset size: {len(train_dataset)}")
+
+    val_dataset = [CLUSTER_BRAIN(emb_folder=dir, train=False, split=True, name_list=[name]) for name in NAMES]
+
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=args.batch_size,
+        shuffle=False,
+        num_workers=3,
+        pin_memory=True
+    )
+    val_loaders = [
+        DataLoader(
+            v_set,
+            batch_size=args.batch_size,
+            shuffle=False,
+            num_workers=3,
+            pin_memory=True
+        )
+        for v_set in val_dataset
+    ]
+
+    if args.local:
+        print("Running locally")
+        train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False, pin_memory=False)
+        val_loaders = [
+            DataLoader(v_set, batch_size=args.batch_size, shuffle=False, pin_memory=False)
+            for v_set in val_dataset
+        ]
+
+    # Ridge Regression Model Initialization
+    input_dim = train_dataset[0]["feature"].shape[0]
+    output_dim = train_dataset[0]["expression"].shape[1]
+    alpha = 100 / (input_dim * output_dim)  # Default alpha value if not specified
+    model = RidgeRegression(input_dim=input_dim, output_dim=output_dim, alpha=alpha).to(device)
+
+    # Optimizer
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0005)
+
+    # Train the Ridge Regression model
+    train_regression(
+        model=model,
+        train_loader=train_loader,
+        val_loader=torch.utils.data.DataLoader(
+            torch.utils.data.ConcatDataset(val_dataset),
+            batch_size=args.batch_size,
+            shuffle=False,
+            pin_memory=True,
+        ),
+        args=args,
+        max_iter=args.epochs,
+        alpha=alpha,
+        method="ridge"
+    )
+
     
-    # np.savez('preprocessed_val.npz', features=features_np, exps=exps)
-    dir='D:/Downloads/crunch/WiKG'
-    data= np.load(f'{dir}/preprocessed_train.npz')
-    # print(features_np)
-    features = torch.from_numpy(data['features'])
-    exps=data['exps']
-    preprocessed_train_dataset = PreprocessedDataset(features, exps)
-    # print(f'Using fold {args.fold}')
-    print(f'train: {len(preprocessed_train_dataset)}')
-    # print(f'valid: {len(val_set)}')
-
-    # dummy_dataset= Dummy(train=True)
-    # batch_sampler = CustomBatchSampler(dummy_dataset, shuffle=True)
-    # train_loader = DataLoader(preprocessed_train_dataset, batch_size=args.batch_size, shuffle=batch_sampler,num_workers=args.n_workers,pin_memory=True)    
-    
-    
-    device = torch.device(args.device if torch.cuda.is_available() else 'cpu')
-
-    data= np.load(f'{dir}/preprocessed_val.npz')
-    features = torch.from_numpy(data['features'])
-    exps=data['exps']
-    preprocessed_val_dataset = PreprocessedDataset(features, exps)
-    # val_loader = DataLoader(preprocessed_val_dataset, batch_size=4096, num_workers=args.n_workers, shuffle=False)
-    output_dir = args.save_dir
-    
-    dummy_dataset_train = Dummy(train=True)
-    dummy_dataset_val = Dummy(train=False)
-    unique_ids_train = set(item['id'] for item in dummy_dataset_train)
-    unique_ids_val = set(item['id'] for item in dummy_dataset_val)
-
-    results_list = []
-
-    print(f"Performing Leave-One-Out training for {len(unique_ids_train)} IDs...")
-    for loo_id in unique_ids_train:
-        print(f"Processing LOO for ID {loo_id}...")
-        
-        # Split the dataset based on LOO ID
-        train_indices = [idx for idx, item in enumerate(dummy_dataset_train) if item['id'] != loo_id]
-        val_indices = [idx for idx, item in enumerate(dummy_dataset_val) if item['id'] == loo_id]
-        alpha= 0.0002122961956521739
-        model = RidgeRegression(1024, 460, alpha).to(device)
-        
-        # Create DataLoader for training and validation
-        train_sampler = torch.utils.data.SubsetRandomSampler(train_indices)
-        val_sampler = torch.utils.data.SubsetRandomSampler(val_indices)
-        
-        train_loader = DataLoader(preprocessed_train_dataset, batch_size=args.batch_size, sampler=train_sampler, num_workers=args.n_workers, pin_memory=True)
-        val_loader = DataLoader(preprocessed_val_dataset, batch_size=args.batch_size, sampler=val_sampler, num_workers=args.n_workers, pin_memory=True)
-
-        # Define the output directory for this LOO iteration
-        output_dir = f'{args.save_dir}/loo_id_{loo_id}'
-        os.makedirs(output_dir, exist_ok=True)
-        args.save_dir = output_dir  # Update save directory dynamically
-
-        # Train regression model
-        results = train_regression(model=model,train_loader=train_loader, val_loader=val_loader,args= args, max_iter=150, random_state=args.seed)
-
-        # Save the trained model
-        model_file = os.path.join(output_dir, 'ridge_model.pkl')
-        with open(model_file, 'wb') as f:
-            pickle.dump(model, f)
-        print(f"Model for LOO ID {loo_id} saved to {model_file}")
-
-        # Reload the model (for validation or later analysis)
-        # with open(model_file, 'rb') as f:
-        #     loaded_model = pickle.load(f)
-        # print(f"Model for LOO ID {loo_id} loaded from {model_file}")
-
-        # Verify reloaded model by re-evaluating on the validation set
-        # val_features = []
-        # val_exps = []
-        # for batch in val_loader:
-        #     features, exps = batch
-        #     val_features.append(features.numpy())
-        #     val_exps.append(exps.numpy())
-
-        # val_features = np.concatenate(val_features, axis=0)
-        # val_exps = np.concatenate(val_exps, axis=0)
-
-        # predictions = loaded_model.predict(val_features)
-        # validation_metrics = compute_metrics(val_exps, predictions)
-
-        # print(f"Validation Metrics for LOO ID {loo_id}: {validation_metrics}")
-
-        # # Save validation metrics
-        results_list.append(results)
-
-    # Save aggregated results
-    os.makedirs(args.save_dir,exist_ok=True)
-    aggregated_results = pd.DataFrame(results_list)
-    aggregated_results.to_csv(os.path.join(args.save_dir, 'loo_aggregated_results.csv'), index=False)
-    print(f"LOO training completed. Aggregated results saved to {os.path.join(args.save_dir, 'loo_aggregated_results.csv')}")
-
-    # start_epoch, args, model,scheduler, optimizer = load_checkpoint(463, model, optimizer,scheduler,args)
-   
-    
-        
             
 
 if __name__ == '__main__':

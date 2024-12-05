@@ -5364,3 +5364,6 @@ cluster/train/cluster_data.zip
 cluster/train/cluster_data_split.zip
 __pycache__/gdown.cpython-39.pyc
 mclSTExp/model_result/80/checkpoint_epoch_0.pth.tar
+WiKG/model_result/80/checkpoint_epoch_3.pth.tar
+WiKG/model_result/80/checkpoint_epoch_7.pth.tar
+WiKG/model_result/80/checkpoint_epoch_11.pth.tar

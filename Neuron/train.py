@@ -51,8 +51,8 @@ def train_one_epoch(model, train_loader, optimizer,scheduler, device, epoch,demo
 
         total_loss = (total_loss * i + loss.detach()) / (i + 1)
         train_loader.desc = 'Train\t[epoch {}] lr: {}\tloss {}'.format(epoch, optimizer.param_groups[0]["lr"], round(total_loss.item(), 3))
-        if i==3 and demo==True:
-            break
+        # if i==3 and demo==True:
+        #     break
     torch.cuda.empty_cache()
     return pred
 

@@ -102,13 +102,15 @@ def load_data(args):
         if args.demo == True:
             NAMES=NAMES[:2]
         train_dataset = CLUSTER_BRAIN(emb_folder=dir,train=True,split=True,name_list=NAMES)
+        batch_sampler = CustomBatchSampler(train_dataset, shuffle=True)
+
         # dummy_dataset= Dummy(train=True)
         # batch_sampler = CustomBatchSampler(dummy_dataset, shuffle=True)
         # print('hellooooooooooooooooooooooooooo')
-        train_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False,num_workers=3,pin_memory=True)
+        train_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=batch_sampler,num_workers=3,pin_memory=True)
         if args.local== True:
             print('local run')
-            train_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False,pin_memory=False)
+            train_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=batch_sampler,pin_memory=False)
         print(len(train_dataset))
         test_dataLoader=None
         return train_dataLoader, test_dataLoader

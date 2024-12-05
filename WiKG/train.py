@@ -148,6 +148,8 @@ def parse():
     parser.add_argument('--embed_dir', type=str, default='/content/preprocessed')
     parser.add_argument('--demo', type=bool, default=False)
     parser.add_argument('--local', type=bool, default=False)
+    parser.add_argument('--encoder_mode', type=bool, default=False)
+
     return parser.parse_args()
 
 def save_checkpoint(epoch, model, optimizer,scheduler, args, filename="checkpoint.pth.tar"):
@@ -174,7 +176,8 @@ def load_checkpoint(epoch, model, optimizer,scheduler,args):
     # scheduler.load_state_dict(checkpoint['scheduler'])
     print(f"Checkpoint loaded from epoch {epoch}")
     return epoch + 1, args,model,scheduler,optimizer
-
+import anndata
+from utils import get_R
 
 def main(args):
     print(args)
@@ -204,14 +207,17 @@ def main(args):
     # print(f'Using fold {args.fold}')
     print(f'train: {len(train_dataset)}')
     # print(f'valid: {len(val_set)}')
-    val_dataset = CLUSTER_BRAIN(emb_folder=dir,train=False,split=True,name_list=NAMES)
+    val_dataset = [CLUSTER_BRAIN(emb_folder=dir,train=False,split=True,name_list=[name] ) for name in NAMES]
     
     train_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False,num_workers=3,pin_memory=True)
-    val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False,num_workers=3,pin_memory=True)
+    val_loader = [DataLoader(v_set, batch_size=args.batch_size
+                             , shuffle=False,num_workers=3,pin_memory=True )
+                  for v_set in val_dataset]    
     if args.local ==True:
         print('local run')
         train_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False,pin_memory=False)
-        val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False,pin_memory=False)
+        val_loader = [DataLoader(v_set, batch_size=args.batch_size, shuffle=False,pin_memory=False )
+                for v_set in val_dataset]    
     output_dir = args.save_dir
     
     
@@ -244,28 +250,66 @@ def main(args):
     with open(f'{output_dir}/val_matrix.txt', 'w') as f:
             print('test start', file=f)
 
-    max_val_mse = 0.0
-    max_val_mae = 0.0
+    
     start_epoch= args.start_epoch
     # start_epoch, args, model,scheduler, optimizer = load_checkpoint(463, model, optimizer,scheduler,args)
     for step in range(start_epoch*len(train_dataLoader)):
         scheduler.step()
     print(start_epoch)
+    min_val_mse = 200.0
+    min_val_mae = 200.0
     print(f'start epoch: {start_epoch}, batch size: {args.batch_size}')
     for epoch in range(start_epoch, args.epochs):
         checkpoint_filename = f"checkpoint_best_epoch_{epoch}.pth.tar"
         train_logits = train_one_epoch(model=model, train_loader=train_dataLoader, optimizer=optimizer,scheduler=scheduler, device=device, epoch=epoch + 1)
         if (epoch+1)%2 ==0: 
-            val_preds, val_labels = val_one_epoch(model=model, val_loader=val_loader, device=device, data_type='val')
-            mse=mean_squared_error(val_labels, val_preds)
-            mae=mean_absolute_error(val_labels, val_preds)
-            print('Val\t[epoch {}] mse:{}\tmae:{}'.format(epoch + 1, mse, mae))
-        
-        
-#             max_val_mse = max(max_val_mse, mse)
-#             max_val_mae = max(max_val_mae, mae)
+            hvg_pcc_list = []
+            heg_pcc_list = []
+            mse_list = []
+            mae_list = []
+            for index in range(len(val_loader)): 
+                val_preds, val_labels = val_one_epoch(model=model
+                                                      , val_loader=val_loader[index]
+                                                      , device=device
+                                                      
+                                                     )
+                mse=mean_squared_error(val_labels, val_preds)
+                mae=mean_absolute_error(val_labels, val_preds)
+                ###############
+                tmp_list=[str(i) for i in range(460)]
+                val_labels=val_labels.numpy()
+                val_preds= val_preds.numpy() 
+                adata_true = anndata.AnnData(val_labels)
+                adata_pred = anndata.AnnData(val_preds)
+                adata_pred.var_names = tmp_list
+                adata_true.var_names = tmp_list
+                gene_mean_expression = np.mean(adata_true.X, axis=0)
+                top_50_genes_indices = np.argsort(gene_mean_expression)[::-1][:50]
+                top_50_genes_names = adata_true.var_names[top_50_genes_indices]
+                top_50_genes_expression = adata_true[:, top_50_genes_names]
+                top_50_genes_pred = adata_pred[:, top_50_genes_names]
+
+                heg_pcc, heg_p = get_R(top_50_genes_pred, top_50_genes_expression)
+                hvg_pcc, hvg_p = get_R(adata_pred, adata_true)
+                hvg_pcc = hvg_pcc[~np.isnan(hvg_pcc)]
+                
+                heg_pcc_list.append(np.mean(heg_pcc))
+                hvg_pcc_list.append(np.mean(hvg_pcc))
+                mse_list.append(mse)
+                mae_list.append(mae)
+            
+                print(f'name: {NAMES[index]}')
+                print('Val\t[epoch {}] mse:{}\tmae:{}\theg:{} \thevg:{}'.format(epoch + 1, mse, mae,np.mean(heg_pcc),np.mean(hvg_pcc)))
+            # print(f"avg heg pcc : {np.mean(heg_pcc):.4f}")
+            # print(f"avg hvg pcc: {np.mean(hvg_pcc):.4f}")
+            print(f"Mean Squared Error (MSE): {np.mean(mse_list):.4f}")
+            print(f"Mean Absolute Error (MAE): {np.mean(mae_list):.4f}")
+            print(f"avg heg pcc: {np.mean(heg_pcc_list):.4f}")
+            print(f"avg hvg pcc: {np.mean(hvg_pcc_list):.4f}")
+            min_val_mse = min(min_val_mse, np.mean(mse_list))
+            min_val_mae = min(min_val_mae, np.mean(mae_list))
        
-            if max_val_mse == mse and epoch>30:
+            if min_val_mae == mse and epoch>30:
                 print('best mse found... save best acc weights...')
                 
                 save_checkpoint(epoch, model, optimizer,scheduler, args, filename=checkpoint_filename)
