@@ -3,8 +3,8 @@ import torch
 import torch.nn.functional as F
 from scipy.stats import pearsonr
 from tqdm import tqdm
-from model import mclSTExp_Attention
-from dataset import MINI_DATA_BRAIN,MINI_DATA_BRAIN_BETA
+from model import mclSTExp_Attention_Pretrain
+from dataset import CLUSTER_BRAIN
 from torch.utils.data import DataLoader
 import os
 import numpy as np
@@ -20,11 +20,14 @@ NAMES = ['DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I']
 def get_embeddings(model_path,model,r,save_path):
     # train_image_embeddings_dict=[]
     # train_spot_embeddings_dict=[]
-    train_image_embeddings = []
-    train_spot_embeddings = []
+    test_image_embeddings_dict = {}
+    train_spot_embeddings_dict ={}
     for i in NAMES:
-        train_dataset= MINI_DATA_BRAIN(train=True,r=r,name=i)
-        train_loader =DataLoader(train_dataset, batch_size=256, shuffle=False, num_workers=2)
+        train_spot_embeddings = []
+        train_image_embeddings = []
+
+        train_dataset= CLUSTER_BRAIN(train=True,split= True,name_list=[i])
+        train_loader =DataLoader(train_dataset, batch_size=256, shuffle=False)
         checkpoint = torch.load(model_path)
         state_dict=checkpoint['model_state_dict']
         new_state_dict = {}
@@ -43,10 +46,6 @@ def get_embeddings(model_path,model,r,save_path):
         with torch.no_grad():
             for batch in tqdm(train_loader):
                 
-                image_features = model.image_encoder(batch["image"].cuda())
-                image_embeddings = model.image_projection(image_features)
-                train_image_embeddings.append(image_embeddings)
-
                 spot_feature = batch["expression"].cuda()
                 x = batch["position"][:, 0].long().cuda()
                 y = batch["position"][:, 1].long().cuda()
@@ -55,30 +54,21 @@ def get_embeddings(model_path,model,r,save_path):
                 spot_feature = spot_feature + centers_x + centers_y
                 
                 spot_features = spot_feature.unsqueeze(dim=0)
+                spot_features = spot_features.to(torch.float32)
                 train_spot_embedding = model.spot_encoder(spot_features)
                 train_spot_embedding = model.spot_projection(train_spot_embedding).squeeze(dim=0)
                 train_spot_embeddings.append(train_spot_embedding)
-                
+        train_spot_embeddings_dict[i]= torch.cat(train_spot_embeddings)
         # TiE= torch.Tensor(train_image_embeddings).cpu().numpy()
         # TsE= torch.Tensor(train_spot_embeddings).cpu().numpy()
         # np.save(save_path + "train_img_embeddings_" + str(NAMES[i]) + ".npy", TiE.T)
         # np.save(save_path + "train_spot_embeddings_" + str(NAMES[i]) + ".npy", TsE.T)
 
-                
-        # train_image_embeddings_dict.append(train_image_embeddings)
-        # train_spot_embeddings_dict.append(train_spot_embeddings)
-        train_loader=None
-        train_dataset=None
-        del train_loader
-        del train_dataset
-        
-        
-    # test_image_embeddings_dict=[]    
-    test_image_embeddings = []
-
     for i in NAMES:
-        test_dataset= MINI_DATA_BRAIN(train=False,r=r,name=i)
-        test_loader =DataLoader(test_dataset, batch_size=256, shuffle=False, num_workers=2)
+        test_image_embeddings = []
+
+        test_dataset= CLUSTER_BRAIN(train=False,split= True,name_list=[i])
+        test_loader =DataLoader(test_dataset, batch_size=256, shuffle=False)
         checkpoint = torch.load(model_path)
         state_dict=checkpoint['model_state_dict']
         new_state_dict = {}
@@ -91,15 +81,28 @@ def get_embeddings(model_path,model,r,save_path):
         model.eval()
         model = model.to('cuda')
         print("Finished loading model")
-        # test_image_embeddings = []
+        # train_image_embeddings = []
+        # train_spot_embeddings = []
         
         with torch.no_grad():
             for batch in tqdm(test_loader):
                 
-                image_features = model.image_encoder(batch["image"].cuda())
+               
+                image_features = batch["feature"].cuda()
                 image_embeddings = model.image_projection(image_features)
                 test_image_embeddings.append(image_embeddings)
 
+               
+        test_image_embeddings_dict[i]= torch.cat(test_image_embeddings)        
+        # train_image_embeddings_dict.append(train_image_embeddings)
+        # train_spot_embeddings_dict.append(train_spot_embeddings)
+        train_loader=None
+        train_dataset=None
+        del train_loader
+        del train_dataset
+        
+        
+    
                
         # TiE= torch.Tensor(test_image_embeddings).cpu().numpy()
         # np.save(save_path + "train_img_embeddings_" + str(NAMES[i]) + ".npy", TiE.T)
@@ -112,9 +115,7 @@ def get_embeddings(model_path,model,r,save_path):
         
     
     
-    return torch.cat(train_image_embeddings)\
-            , torch.cat(train_spot_embeddings)\
-            ,torch.cat(test_image_embeddings)
+    return train_spot_embeddings_dict, test_image_embeddings_dict
 
 
 # def find_matches(spot_embeddings, query_embeddings, top_k=1):
@@ -130,10 +131,10 @@ def get_embeddings(model_path,model,r,save_path):
 #     return indices.cpu().numpy()
 
 
-def save_embeddings(model_path, save_path, args, test_datasize,r):
+def save_embeddings(model_path, save_path, args,r):
 
     
-    model = mclSTExp_Attention(encoder_name=args.encoder_name,
+    model = mclSTExp_Attention_Pretrain(encoder_name=args.encoder_name,
                                spot_dim=args.dim,
                                temperature=args.temperature,
                                image_dim=args.image_embedding_dim,
@@ -143,20 +144,15 @@ def save_embeddings(model_path, save_path, args, test_datasize,r):
                                head_layers=args.heads_layers,
                                dropout=args.dropout)
 
-    train_img_embeddings_all, train_spot_embeddings_all, \
-    test_img_embeddings_all = get_embeddings(model_path,model,r,save_path)
-    
-    train_img_embeddings_all = train_img_embeddings_all.cpu().numpy()
-    train_spot_embeddings_all = train_spot_embeddings_all.cpu().numpy()
-    test_img_embeddings_all = test_img_embeddings_all.cpu().numpy()
-    print("train img_embeddings_all.shape", train_img_embeddings_all.shape)
-    print("train spot_embeddings_all.shape", train_img_embeddings_all.shape)
-    print("test img_embeddings_all.shape", test_img_embeddings_all.shape)
-
-    if not os.path.exists(save_path):
-        os.makedirs(save_path)
-    np.save(save_path + "train_img_embeddings.npy", train_img_embeddings_all.T)
-    np.save(save_path + "train_spot_embeddings.npy", train_spot_embeddings_all.T)
+    train_spot_embeddings_all,test_image_embeddings_all = get_embeddings(model_path,model,r,save_path)
+    for name in NAMES:
+        train_spot_embeddings_all[name] = train_spot_embeddings_all[name].cpu().numpy()
+        print("train spot_embeddings_all.shape", train_spot_embeddings_all[name].shape)
+        test_image_embeddings_all[name] = test_image_embeddings_all[name].cpu().numpy()
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+        np.save(save_path + f"train_spot_embeddings_{name}.npy", train_spot_embeddings_all[name].T)
+        np.save(save_path + f"test_image_embeddings_{name}.npy", test_image_embeddings_all[name].T)
     # for i in range(len(train_datasize)):
     #     index_start = sum(train_datasize[:i])
     #     index_end = sum(train_datasize[:i + 1])
@@ -167,12 +163,12 @@ def save_embeddings(model_path, save_path, args, test_datasize,r):
     #     np.save(save_path + "train_img_embeddings_" + str(NAMES[i]) + ".npy", train_image_embeddings.T)
     #     np.save(save_path + "train_spot_embeddings_" + str(NAMES[i]) + ".npy", train_spot_embeddings.T)
     
-    for i in range(len(test_datasize)):
-        index_start = sum(test_datasize[:i])
-        index_end = sum(test_datasize[:i + 1])
-        test_image_embeddings = test_img_embeddings_all[index_start:index_end]
-        print("test image_embeddings.shape", test_image_embeddings.shape)
-        np.save(save_path + "test_img_embeddings_" + str(NAMES[i]) + ".npy", test_image_embeddings.T)
+    # for i in range(len(test_datasize)):
+    #     index_start = sum(test_datasize[:i])
+    #     index_end = sum(test_datasize[:i + 1])
+    #     test_image_embeddings = test_img_embeddings_all[index_start:index_end]
+    #     print("test image_embeddings.shape", test_image_embeddings.shape)
+    #     np.save(save_path + "test_img_embeddings_" + str(NAMES[i]) + ".npy", test_image_embeddings.T)
 
 def get_sdata(name):
         path= f'../data/{name}.zarr'
@@ -190,18 +186,18 @@ def main():
     epoch=name_parse.split('-')[1]
     MODEL_NAME= f'checkpoint_epoch_{epoch}.pth.tar'
     # NAMES=NAMES[:1]
-    train_datasize=[]
-    test_datasize=[]
+    # train_datasize=[]
+    # test_datasize=[]
 
 
-    split_path= "./train_split"
+    # split_path= "./train_split"
 
-    for i in NAMES:
-        with open(f'./train_split/{i}_train.pkl','rb') as f:  # Python 3: open(..., 'rb')
-            split_train_binary = pickle.load(f)
+    # for i in NAMES:
+    #     with open(f'./train_split/{i}_train.pkl','rb') as f:  # Python 3: open(..., 'rb')
+    #         split_train_binary = pickle.load(f)
         
-        train_datasize.append(sum(split_train_binary))
-        test_datasize.append(len(split_train_binary)-sum(split_train_binary))
+    #     train_datasize.append(sum(split_train_binary))
+    #     test_datasize.append(len(split_train_binary)-sum(split_train_binary))
         
 
     # datasize = [np.load(f"./data/preprocessed_expression_matrices/mcistexp/{name}/preprocessed_matrix.npy").shape[1] for
@@ -210,8 +206,7 @@ def main():
    
     save_embeddings(model_path=f"./model_result/{patch_size}/{MODEL_NAME}",
                     save_path=f"./model_result/{patch_size}/{epoch}/",
-                    args=args,
-                    test_datasize=test_datasize
+                    args=args
                     ,r=int(patch_size/2))
 
 if __name__ == '__main__':

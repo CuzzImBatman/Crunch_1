@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from scipy.stats import pearsonr
 from tqdm import tqdm
 from model import mclSTExp_Attention
-from dataset import DATA_BRAIN
+from dataset import CLUSTER_BRAIN
 from torch.utils.data import DataLoader
 import os
 import numpy as np
@@ -19,7 +19,7 @@ import csv
 NAMES = ['DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I']
 
 
-
+# C:\DATA\Crunch\mclSTExp\model_result\80\219\test_image_embeddings_DC5.npy test_img_embeddings_DC5.npy
 # def find_matches(spot_embeddings, query_embeddings, top_k=1):
 #     # find the closest matches
 #     spot_embeddings = torch.tensor(spot_embeddings)
@@ -69,24 +69,35 @@ def get_sdata(name):
         # print(path)
         sdata = sd.read_zarr(path)
         return sdata
-def get_expression():
-    train_log1p_dict=[]
-    test_log1p_dict=[]
-    for name in NAMES:
-        sdata= get_sdata(name)
+# def get_expression():
+#     train_log1p_dict=[]
+#     test_log1p_dict=[]
+#     for name in NAMES:
+#         sdata= get_sdata(name)
         
-        with open(f'./train_split/{name}_train.pkl','rb') as f:  # Python 3: open(..., 'rb')
-                split_train_binary = pickle.load(f)
-        # train_log1p_dict[name]=sdata['anucleus'].X[np.array(split_train_binary)==1].T
-        # test_log1p_dict[name]=sdata['anucleus'].X[np.array(split_train_binary)==0].T
-        train_log1p_dict.append(sdata['anucleus'].X[np.array(split_train_binary)==1].T)
-        test_log1p_dict.append(sdata['anucleus'].X[np.array(split_train_binary)==0].T)
+#         with open(f'./train_split/{name}_train.pkl','rb') as f:  # Python 3: open(..., 'rb')
+#                 split_train_binary = pickle.load(f)
+#         # train_log1p_dict[name]=sdata['anucleus'].X[np.array(split_train_binary)==1].T
+#         # test_log1p_dict[name]=sdata['anucleus'].X[np.array(split_train_binary)==0].T
+#         train_log1p_dict.append(sdata['anucleus'].X[np.array(split_train_binary)==1].T)
+#         test_log1p_dict.append(sdata['anucleus'].X[np.array(split_train_binary)==0].T)
         
-    gene_list= sdata['anucleus'].var['gene_symbols'].values
-    sdata=None
-    del sdata
-    return train_log1p_dict,test_log1p_dict,gene_list 
-    
+#     gene_list= sdata['anucleus'].var['gene_symbols'].values
+#     sdata=None
+#     del sdata
+#     return train_log1p_dict,test_log1p_dict,gene_list 
+def extract_expressions(dataset):
+    """
+    Extracts the "expression" field from all items in a dataset and returns as a NumPy array.
+
+    Parameters:
+    - dataset: The dataset object to extract expressions from.
+
+    Returns:
+    - np.ndarray: A NumPy array containing all the "expression" data from the dataset.
+    """
+    expressions = [item["expression"] for item in dataset]
+    return np.array(expressions)
 def main():
 
     args = generate_args()
@@ -97,17 +108,27 @@ def main():
     epoch=name_parse.split('-')[1]
     MODEL_NAME= f'checkpoint_epoch_{epoch}.pth.tar'
     # NAMES=NAMES[:1]
-   
-    train_spot_expressions, test_spot_expressions, gene_list=get_expression()
+    
+    # train_spot_expressions, test_spot_expressions, gene_list=get_expression()
+    train_spot_expressions=[]
+    test_spot_expressions=[]
+    for name in NAMES:
+        train_set= CLUSTER_BRAIN(train=True, split = True,name_list=[name])
+        train_spot_expressions.append(extract_expressions(train_set))
+        print(train_spot_expressions[-1].shape)
+        test_set= CLUSTER_BRAIN(train= False,split= True, name_list=[name])
+        test_spot_expressions.append(extract_expressions(test_set))
+        train_set=None
+        test_set=None
 
-    train_datasize=[]
-    test_datasize=[]
-    for i in NAMES:
-        with open(f'./train_split/{i}_train.pkl','rb') as f:  # Python 3: open(..., 'rb')
-            split_train_binary = pickle.load(f)
+    # train_datasize=[]
+    # test_datasize=[]
+    # for i in NAMES:
+    #     with open(f'./train_split/{i}_train.pkl','rb') as f:  # Python 3: open(..., 'rb')
+    #         split_train_binary = pickle.load(f)
         
-        train_datasize.append(sum(split_train_binary))
-        test_datasize.append(len(split_train_binary)-sum(split_train_binary))
+    #     train_datasize.append(sum(split_train_binary))
+    #     test_datasize.append(len(split_train_binary)-sum(split_train_binary))
             
     
     hvg_pcc_list = []
@@ -116,6 +137,7 @@ def main():
     mae_list = []
     save_path = f"./model_result/{patch_size}/{epoch}/"
     csv_file_path = os.path.join(save_path, "results.csv")
+    train_spot_embeddings = [np.load(save_path + f"train_spot_embeddings_{name}.npy") for name in NAMES]
     with open(csv_file_path, mode="w", newline="") as file:
         for test_name in NAMES:
             
@@ -128,26 +150,31 @@ def main():
             writer.writerow(["Test Name", "Drop out Slide", "MSE", "MAE", "Avg HEG PCC", "Avg HVG PCC"])
             index= NAMES.index(test_name)
             # for index in range(len(train_datasize)):
-            index_start = sum(train_datasize[:index])
-            index_end = sum(train_datasize[:index + 1])
-            train_spot_embeddings = np.load(save_path + f"train_spot_embeddings.npy")
+            
+            
             # print(train_spot_embeddings.shape)
             # test_spot_embeddings = [np.load(save_path + f"test_spot_embeddings_{test_name}.npy")]
             # selected_columns = np.random.choice(train_spot_embeddings[:,index_start:index_end].shape[1], size=4000, replace=False)
             # selected_array = train_spot_embeddings[:,index_start:index_end][:, selected_columns]
-            train_spot_embeddings = np.concatenate((train_spot_embeddings[:,:index_start], train_spot_embeddings[:,index_end:]),axis=1)
-
-            image_embeddings = np.load(save_path + f"test_img_embeddings_{test_name}.npy")
+            # train_spot_embeddings = np.concatenate((train_spot_embeddings[:,:index_start], train_spot_embeddings[:,index_end:]),axis=1)
+            spot_embeddings= train_spot_embeddings[:index] + train_spot_embeddings[index+1:]
+            
+            spot_embeddings=np.concatenate(spot_embeddings, axis=1)
+            image_embeddings = np.load(save_path + f"test_image_embeddings_{test_name}.npy")
 
 
             image_query = image_embeddings
             expression_gt = test_spot_expressions[NAMES.index(test_name)]
-            spot_embeddings = train_spot_embeddings
-            spot_expressions_rest = train_spot_expressions
-
+            # spot_embeddings = train_spot_embeddings
+            #########
+            # spot_expressions_rest = train_spot_expressions
+            spot_expressions_rest= train_spot_expressions[:index] + train_spot_expressions[index+1:]
+            ##########################
+            
             # spot_key = np.concatenate(spot_embeddings, axis=1)
             spot_key=spot_embeddings
-            expression_key = np.concatenate(spot_expressions_rest, axis=1)
+            expression_key = np.concatenate(spot_expressions_rest, axis=0)
+            
             # expression_key=spot_expressions_rest
             method = "weighted"
             # save_path = f"./mcistexp_pred_att/{names[fold]}/"
@@ -165,7 +192,7 @@ def main():
                 expression_key = expression_key.T
                 print("expression_key shape: ", expression_key.shape)
 
-            indices = find_matches(spot_key, image_query, top_k=3000)
+            indices = find_matches(spot_key, image_query, top_k=1850)
             matched_spot_embeddings_pred = np.zeros((indices.shape[0], spot_key.shape[1]))
             matched_spot_expression_pred = np.zeros((indices.shape[0], expression_key.shape[1]))
             # with open(save_path+ f'indices_{test_name}.pkl', 'wb') as f:  # Python 3: open(..., 'wb')
@@ -191,7 +218,7 @@ def main():
 
             adata_true = anndata.AnnData(true)
             adata_pred = anndata.AnnData(pred)
-
+            gene_list=[str(i) for i in range(460)]
             adata_pred.var_names = gene_list
             adata_true.var_names = gene_list
 

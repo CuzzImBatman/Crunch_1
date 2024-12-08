@@ -7,10 +7,10 @@ from dataset import NeuronData,build_batch_graph
 # from torch.utils.data import Dataset, DataLoader
 from torch_geometric.loader import DataLoader
 import torch
-from model import GATModel
+from model import GATModel,GATModel_2,GATModel_3
 import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
-from dataset import NeuronData
+from dataset import NeuronData,NeuronData_2,NeuronData_3
 from lr_scheduler import LR_Scheduler
 from torch.utils.data import Sampler
 from collections import defaultdict
@@ -24,41 +24,65 @@ import anndata
 from utils import get_R
 
 
-def train_one_epoch(model, train_loader, optimizer,scheduler, device, epoch,demo=False):
+def train_one_epoch(model, train_loader, optimizer,scheduler, device, epoch,demo=False,centroid_layer=False):
     model.train()
     total_loss = torch.zeros(1).to(device)
     train_loader = tqdm(train_loader, file=sys.stdout, ncols=100, colour='red')
     # optimizer.zero_grad()
+    optimizer.zero_grad()
+    accumulation_steps = 1  # Number of steps to accumulate gradients
+
     for i, data in enumerate(train_loader):
-        optimizer.zero_grad()
-        # data = data.to(device)
-        graph_data= build_batch_graph(data,device)
-        # graph_data.cpu()
-        # data.cpu()
-        pred,label = model(graph_data)
-        label = np.array(label, dtype=np.float32)
-        label = torch.from_numpy(label)
-        label= label.to(device)
-        # print(label.shape,pred.shape)
+        # graph_data= build_batch_graph(data,device,centroid_layer=centroid_layer)
+        # data=None
+        # pred,label,pred_c,label_c = model(graph_data)
+        if i!=-1: #for testing manual
+            
+            # data = data.to(device)
+            
+            graph_data= build_batch_graph(data,device,centroid_layer=centroid_layer)
+            data=None
+            # print(graph_data.exps.shape)
+            # excep?t:
+                # print(data)
+            # graph_data.cpu()
+            # data.cpu()
+            pred,label,pred_c,label_c = model(graph_data)
+            
+            label = np.array(label, dtype=np.float32)
+            label = torch.from_numpy(label)
+            label= label.to(device)
+            # print(label.shape,pred.shape)
 
-        # print(type(label))
+            # print(type(label))
+            if pred_c is not None:
+                label_c = np.array(label_c, dtype=np.float32)
+                label_c= torch.from_numpy(label_c)
+                label_c= label_c.to(device)
+                loss = F.mse_loss(pred, label)+ F.mse_loss(pred_c, label_c)
+            else:
+                loss = F.mse_loss(pred, label)
 
-        loss = F.mse_loss(pred, label)
-
-        loss.backward()
-        optimizer.step()
-        scheduler.step()
-
-        total_loss = (total_loss * i + loss.detach()) / (i + 1)
-        train_loader.desc = 'Train\t[epoch {}] lr: {}\tloss {}'.format(epoch, optimizer.param_groups[0]["lr"], round(total_loss.item(), 3))
-        # if i==3 and demo==True:
+            loss.backward()
+            if (i + 1) % accumulation_steps == 0 or (i + 1) == len(train_loader):
+                optimizer.step()  # Perform optimizer step
+                scheduler.step()  # Adjust learning rate
+                optimizer.zero_grad()
+            
+            # optimizer.step()
+            # scheduler.step()
+            # optimizer.zero_grad()
+            
+            total_loss = (total_loss * i + loss.detach()) / (i + 1)
+            train_loader.desc = 'Train\t[epoch {}] lr: {}\tloss {}'.format(epoch, optimizer.param_groups[0]["lr"], round(total_loss.item(), 3))
+            # if i==3 and demo==True:
         #     break
     torch.cuda.empty_cache()
     return pred
 
 
 @torch.no_grad()
-def val_one_epoch(model, val_loader, device, centroid,demo=False, encoder_mode =False, data_type='val'):
+def val_one_epoch(model, val_loader, device, centroid,demo=False, encoder_mode =False, data_type='val',centroid_layer=False):
     model.eval()
     labels = torch.tensor([], device=device)
     preds = torch.tensor([], device=device)
@@ -69,32 +93,32 @@ def val_one_epoch(model, val_loader, device, centroid,demo=False, encoder_mode =
 
     for i, data in enumerate(val_loader):
         # data = data.to(device)
-        graph_data= build_batch_graph(data,device)
+        graph_data= build_batch_graph(data,device,centroid_layer)
         # data.cpu()
         # graph_data.cpu()
         if encoder_mode ==True:
             centroid=0
-        output,label = model(graph_data)
+        output,label,_,_= model(graph_data)
         output= output[centroid:]
         label= label[centroid:]
         
         label = torch.from_numpy(label).to(device)
         labels = torch.cat([labels.cpu(), label.cpu()], dim=0)
         preds = torch.cat([preds.cpu(), output.detach().cpu()], dim=0)
-        if i==3 and demo==True:
-            break
+        # if i==3 and demo==True:
+        #     break
     print(labels.shape,preds.shape)
     return preds.cpu(), labels.cpu()
 
 
 
 def parse():
-    parser = argparse.ArgumentParser('Training for WiKG')
+    parser = argparse.ArgumentParser('Training for NNeuron')
     parser.add_argument('--epochs', type=int, default=600)
     parser.add_argument('--batch_size', type=int, default=150, help='patch_size')
 
     parser.add_argument('--embed_dir', type=str, default='/content/preprocessed')
-    # parser.add_argument('--patch_size', type=int, default=112, help='patch_size')
+    parser.add_argument('--patch_size', type=str, default='80_1024_512', help='patch_size')
     parser.add_argument('--utils', type=str, default=None, help='utils path')
     parser.add_argument('--device', type=str, default='cuda:0', help='device to use for training / testing')
     parser.add_argument('--n_workers', type=int, default=0)
@@ -103,11 +127,12 @@ def parse():
     parser.add_argument('--fold', type=int, default=0)
     parser.add_argument('--start_epoch', default=0, type=int, metavar='N',
                         help='start epoch')
-    parser.add_argument('--save_dir', default='./', help='path where to save')
+    parser.add_argument('--save_dir', default='./model_result', help='path where to save')
     parser.add_argument('--encoder_mode', default=False, type=bool, help='test encoder')
     parser.add_argument('--encoder_name', default='vitsmall', help='fixed encoder name, for saving folder name')
     parser.add_argument('--demo', default=False, type=bool, help='toy run')
-    
+    parser.add_argument('--local', default=False, type=bool, help='toy run')
+    parser.add_argument('--centroid_layer', default=False, type=bool, help='add layer')
 
     return parser.parse_args()
 
@@ -119,7 +144,7 @@ def save_checkpoint(epoch, model, optimizer,scheduler, args, filename="checkpoin
         'scheduler': scheduler.state_dict(),
         'args': args
     }
-    dir=f"{args.save_dir}/model_result"
+    dir=f"{args.save_dir}"
     if args.encoder_mode== True:
         dir=f"{args.save_dir}/encoder"
     os.makedirs(dir, exist_ok=True)
@@ -128,7 +153,7 @@ def save_checkpoint(epoch, model, optimizer,scheduler, args, filename="checkpoin
 
 def load_checkpoint(epoch, model, optimizer,scheduler,args):
     filename=f"checkpoint_epoch_{epoch}.pth.tar"
-    dir=f"{args.save_dir}/model_result"
+    dir=f"{args.save_dir}"
     if args.encoder_mode== True:
         dir=f"{args.save_dir}/encoder"
     checkpoint = torch.load(f"{dir}/{filename}")
@@ -148,24 +173,32 @@ def main(args):
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
     cudnn.benchmark = True
-    print(args.demo,args.encoder_mode, f'demo: {args.demo== True}  encoder: {args.encoder_mode== True}')
+    print( f'demo: {args.demo== True}  encoder: {args.encoder_mode== True}')
     
     utils_dir = args.utils
     NAMES = ['DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I']
     # NAMES=NAMES[:1]
     
-    train_NAMES= NAMES[:3]+ NAMES[5:]
+    # train_NAMES= NAMES[:3]+ NAMES[5:]
+    train_NAMES= NAMES
     if args.demo== True:
-        NAMES=NAMES[:1]
-        train_NAMES=NAMES
+        NAMES=NAMES[:2]
+        train_NAMES=NAMES[:2]
     dir=args.embed_dir
     # dir='D:/DATA/Gene_expression/Crunch/preprocessed'
-    traindata= NeuronData(emb_folder=dir,train=True, split =True,name_list= train_NAMES,encoder_mode=args.encoder_mode)
-    train_dataLoader =DataLoader(traindata, batch_size=args.batch_size, shuffle=False,pin_memory=False)    
+    if args.local == True:
+        pin= False
+    else:
+        pin= True
+    traindata= NeuronData_3(emb_folder=dir,train=True, split =True
+                          ,name_list= train_NAMES
+                          ,encoder_mode=args.encoder_mode
+                          )
+    train_dataLoader =DataLoader(traindata, batch_size=args.batch_size, shuffle=False,pin_memory=pin)    
     # print(len(train_dataLoader))
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # traindata[2127]
-    model=GATModel()
+    model=GATModel_3(centroid_layer=args.centroid_layer)
     model= model.to('cuda')
     #------------------------
     
@@ -176,20 +209,20 @@ def main(args):
     
     
     
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-5)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0002, weight_decay=1e-5)
     scheduler = LR_Scheduler(optimizer=optimizer
                              ,num_epochs=args.epochs
-                             ,base_lr=0.001
+                             ,base_lr=0.00018
                              ,iter_per_epoch = len(train_dataLoader)
                              ,warmup_epochs= 10
-                            ,warmup_lr= 0.0003
-                            ,final_lr= 0.00001
+                            ,warmup_lr= 0.00015
+                            ,final_lr= 0.00005
                             ,constant_predictor_lr=False
 )
     
-    val_set= [NeuronData(emb_folder=dir,train=False, split =True,name_list= [name],encoder_mode=args.encoder_mode) 
+    val_set= [NeuronData_3(emb_folder=dir,train=False, split =True,name_list= [name],encoder_mode=args.encoder_mode) 
               for name in NAMES]
-    val_loader =[DataLoader(set, batch_size=args.batch_size, shuffle=False,pin_memory=True)for set in val_set]    
+    val_loader =[DataLoader(set, batch_size=args.batch_size, shuffle=False,pin_memory=pin)for set in val_set]    
     output_dir = args.save_dir
     
     # val_set = DATA_BRAIN(train=False,r=int(args.patch_size/2), device=args.device)
@@ -210,7 +243,8 @@ def main(args):
     min_val_mse = 200.0
     min_val_mae = 200.0
     start_epoch= args.start_epoch
-    # start_epoch, args, model,scheduler, optimizer = load_checkpoint(463, model, optimizer,scheduler,args)
+    if start_epoch >0:
+        start_epoch, args, model,scheduler, optimizer = load_checkpoint(start_epoch, model, optimizer,scheduler,args)
     for step in range(start_epoch*len(train_dataLoader)):
         scheduler.step()
     print(start_epoch)
@@ -218,7 +252,7 @@ def main(args):
     for epoch in range(start_epoch, args.epochs):
         checkpoint_filename = f"checkpoint_best_epoch_{epoch}.pth.tar"
         train_logits = train_one_epoch(model=model, train_loader=train_dataLoader
-                                       ,demo=args.demo, optimizer=optimizer,scheduler=scheduler, device=device, epoch=epoch + 1)
+                                       ,demo=args.demo, optimizer=optimizer,scheduler=scheduler, device=device, epoch=epoch + 1,centroid_layer=args.centroid_layer)
         if (epoch+1)%2 ==0: 
             hvg_pcc_list = []
             heg_pcc_list = []
@@ -229,7 +263,8 @@ def main(args):
                                                       , val_loader=val_loader[index]
                                                       , device=device, data_type='val'
                                                       , centroid= args.batch_size
-                                                      ,encoder_mode=args.encoder_mode)
+                                                      ,encoder_mode=args.encoder_mode
+                                                      ,centroid_layer=args.centroid_layer)
                 mse=mean_squared_error(val_labels, val_preds)
                 mae=mean_absolute_error(val_labels, val_preds)
                 ###############
@@ -266,7 +301,7 @@ def main(args):
             min_val_mse = min(min_val_mse, np.mean(mse_list))
             min_val_mae = min(min_val_mae, np.mean(mae_list))
        
-            if min_val_mae == mse and epoch>30:
+            if min_val_mae == np.mean(mse_list) and epoch>10:
                 print('best mse found... save best acc weights...')
                 
                 save_checkpoint(epoch, model, optimizer,scheduler, args, filename=checkpoint_filename)

@@ -427,6 +427,7 @@ def create_edge_index(pos, k=6):
     
     # Compute pairwise distances
     n = pos_np.shape[0]
+    k = min(k,n)
     distances = np.linalg.norm(pos_np[:, None, :] - pos_np[None, :, :], axis=-1)
     
     # Find k-nearest neighbors for each node (excluding itself)
@@ -435,18 +436,18 @@ def create_edge_index(pos, k=6):
     # Create edges
     source = np.repeat(np.arange(n), k)
     target = neighbors.flatten()
-    
+    # print(source.shape,target.shape,n)
     # Convert to PyTorch tensor
     edge_index = torch.tensor(np.array([source, target]), dtype=torch.long)
     
     return edge_index
 class WiKG(nn.Module):
-    def __init__(self, dim_in=1024, dim_hidden=512, topk=6, n_classes=2, agg_type='bi-interaction', dropout=0.3, pool='attn'):
+    def __init__(self, dim_in=1024, dim_hidden=512, topk=6, n_classes=2, agg_type='bi-interaction', dropout=0.3, pool='attn',deivce='cuda:0'):
         super().__init__()
         # self.image_encoder = ImageEncoder()
         # self.image_encoder = ImageEncoder()
         self._fc1 = nn.Sequential(nn.Linear(dim_in, dim_hidden), nn.LeakyReLU())
-        
+        self.device= deivce
         # self.W_head = nn.Linear(dim_hidden, dim_hidden)
         # self.W_tail = nn.Linear(dim_hidden, dim_hidden)
 
@@ -503,9 +504,10 @@ class WiKG(nn.Module):
 
         # x = self.image_encoder(x)
         #-------------
-        x=X['feature'].to('cuda')
-        pos=X['position'].to('cuda')
-        x = self._fc1(x).unsqueeze(0)    # [B, N, C]
+        x=X['feature'].to(self.device)
+        pos=X['position'].to(self.device)
+        
+        # x = self._fc1(x).unsqueeze(0)    # [B, N, C]
         # x = self._fc1(x) #for testing python model.py
         #--------------
         edge_index= create_edge_index(pos,k=6)

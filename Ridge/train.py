@@ -55,68 +55,75 @@ class CustomBatchSampler(Sampler):
 import warnings
 from scipy.stats import pearsonr, ConstantInputWarning
 
-def train_regression(model,train_loader, val_loader, args, max_iter=1000, random_state=0, alpha=None, method='ridge'):
+def train_and_evaluate(model, train_loader, val_loader, args, max_iter=1000, alpha=None, optimizer=None, device='cuda:0'):
     """
-    Trains a regression model using Ridge regression on features and target gene expressions.
+    Combines training and evaluation for Ridge regression model in a memory-efficient manner.
 
-    :param train_loader: DataLoader for training dataset.
-    :param val_loader: DataLoader for validation dataset.
-    :param args: Arguments passed for training configurations.
-    :param max_iter: Maximum number of iterations for regression.
-    :param random_state: Random state for reproducibility.
+    :param model: Ridge regression model.
+    :param train_loader: DataLoader for training data.
+    :param val_loader: DataLoader for validation data.
+    :param args: Training configuration arguments.
+    :param max_iter: Number of training epochs.
     :param alpha: Regularization strength for Ridge regression.
-    :param method: Regression method to use ('ridge').
+    :param optimizer: Optimizer for training the model.
+    :param device: Device to perform training and evaluation ('cuda' or 'cpu').
     """
-    # Prepare training data
-    train_features = []
-    train_exps = []
-    for batch in tqdm(train_loader, desc="Loading training data"):
-        features, exps = batch
-        train_features.append(features.numpy())
-        train_exps.append(exps.numpy())
-    
-    train_features = np.concatenate(train_features, axis=0)
-    train_exps = np.concatenate(train_exps, axis=0)
+    model = model.to(device)
+    alpha = alpha or 100 / (model.linear.weight.shape[1] * model.linear.out_features)
+    print(f"Training Ridge regression model with alpha={alpha}...")
 
-    # Prepare validation data
-    val_features = []
-    val_exps = []
-    for batch in tqdm(val_loader, desc="Loading validation data"):
-        features, exps = batch
-        val_features.append(features.numpy())
-        val_exps.append(exps.numpy())
-    
-    val_features = np.concatenate(val_features, axis=0)
-    val_exps = np.concatenate(val_exps, axis=0)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0005)
-    print(f"Training Ridge regression model...")
-    results = train_test_reg(
-        model=model,
-        optimizer=optimizer,
-        X_train=train_features,
-        X_test=val_features,
-        y_train=train_exps,
-        y_test=val_exps,
-        max_iter=max_iter,
-        random_state=random_state,
-        genes=None,  # Optional: provide gene names
-        alpha=alpha,
-        method=method
-    )
+    # Training loop
+    for epoch in range(max_iter):
+        model.train()
+        train_loss = 0.0
+        for batch in train_loader:
+            features = batch['feature'].to(device, dtype=torch.float32)
+            targets = batch['expression'].to(device, dtype=torch.float32)
 
-    # Save the results
+            optimizer.zero_grad()
+            predictions = model(features)
+            loss = model.compute_loss(predictions, targets)
+            loss.backward()
+            optimizer.step()
+            train_loss += loss.item()
+
+        avg_train_loss = train_loss / len(train_loader)
+        if (epoch + 1) % 100 == 0 or epoch == 0:
+            print(f"Epoch [{epoch + 1}/{max_iter}], Train Loss: {avg_train_loss:.4f}")
+
+    # Validation
+    print("Evaluating on validation set...")
+    model.eval()
+    preds_all, y_test_all = [], []
+    with torch.no_grad():
+        for batch in val_loader:
+            features = batch['feature'].to(device, dtype=torch.float32)
+            targets = batch['expression'].to(device, dtype=torch.float32)
+            predictions = model(features)
+
+            preds_all.append(predictions.cpu().numpy())
+            y_test_all.append(targets.cpu().numpy())
+
+    preds_all = np.concatenate(preds_all, axis=0)
+    y_test_all = np.concatenate(y_test_all, axis=0)
+
+    # Compute evaluation metrics
+    results = compute_metrics(y_test_all, preds_all)
+    print("Validation Metrics:", results)
+
+    # Save results
     output_dir = args.save_dir
+    os.makedirs(output_dir, exist_ok=True)
     results_file = os.path.join(output_dir, 'regression_results.csv')
     pd.DataFrame(results).to_csv(results_file, index=False)
     print(f"Results saved to {results_file}")
 
-    # Optionally, save the model
-    model_file = os.path.join(output_dir, 'ridge_model.pkl')
-    with open(model_file, 'wb') as f:
-        import pickle
-        pickle.dump(model, f)
+    # Save model
+    model_file = os.path.join(output_dir, 'ridge_model.pth')
+    torch.save(model.state_dict(), model_file)
     print(f"Model saved to {model_file}")
 
+    return results
 
 def compute_metrics(y_test, preds_all, genes=None):
     """
@@ -254,7 +261,7 @@ def train_test_reg(model,X_train, X_test, y_train, y_test,
 
 def parse():
     parser = argparse.ArgumentParser('Training for WiKG')
-    parser.add_argument('--epochs', type=int, default=600)
+    parser.add_argument('--epochs', type=int, default=5)
     parser.add_argument('--batch_size', type=int, default=4096, help='patch_size')
 
     parser.add_argument('--embed_dim', type=int, default=1024, help="The dimension of instance-level representations")
@@ -319,7 +326,7 @@ def main(args):
 
     if args.local:
         print("Running locally")
-        train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False, pin_memory=False)
+        train_loaders = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False, pin_memory=False)
         val_loaders = [
             DataLoader(v_set, batch_size=args.batch_size, shuffle=False, pin_memory=False)
             for v_set in val_dataset
@@ -335,7 +342,7 @@ def main(args):
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0005)
 
     # Train the Ridge Regression model
-    train_regression(
+    train_and_evaluate(
         model=model,
         train_loader=train_loader,
         val_loader=torch.utils.data.DataLoader(
@@ -346,8 +353,9 @@ def main(args):
         ),
         args=args,
         max_iter=args.epochs,
-        alpha=alpha,
-        method="ridge"
+        alpha=alpha
+        ,optimizer=optimizer
+        # ,method="ridge"
     )
 
     

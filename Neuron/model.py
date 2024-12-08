@@ -5,7 +5,7 @@ import torch
 import torch.nn.functional as F
 
 class GATModel(nn.Module):
-    def __init__(self, input_dim=16*5*5, hidden_dim=512, output_dim=1024, num_heads=4,n_classes=460):
+    def __init__(self, input_dim=16*5*5, hidden_dim=512, output_dim=1024, num_heads=4,n_classes=460,centroid_layer=False):
         super(GATModel, self).__init__()
 
         # MLP for flattening emb_cells_in_cluster
@@ -17,25 +17,35 @@ class GATModel(nn.Module):
         )
         
         # GATConv for graph processing
+        # self.centroid_layer=centroid_layer
+        # self.gat_conv_centroid = GATv2Conv(output_dim, output_dim, heads=num_heads, concat=False)
         self.gat_conv = GATv2Conv(output_dim, output_dim, heads=num_heads, concat=False)
         self.activate = F.elu
         self.fc = nn.Linear(output_dim, n_classes)
     def forward(self, data):
         # Node features and edge indices from DataLoader
-        emb_data, exps= data
-        x, edge_index = emb_data.x, emb_data.edge_index  # x: [total_nodes, feature_dim], edge_index: [2, num_edges]
-        emb_centroids = emb_data.emb_centroids  # Shape: [num_clusters, 1024], centroids for each cluster
+        emb_data, exps, exps_c= data
+        centroid_num = exps_c.shape[0]
+        x, edge_index = emb_data.x[centroid_num:], emb_data.edge_index  # x: [total_nodes, feature_dim], edge_index: [2, num_edges]
+        emb_centroids = emb_data.x[:centroid_num],  # # Shape: [num_clusters, 1024], centroids for each cluster
 
         # Process emb_cells_in_cluster with flatten_mlp (this processes cell features)
         emb_centroids= emb_centroids.view(-1,1024)
+        h_c=None
+        try:
+            if self.centroid_layer ==True:
+                emb_centroids= self.gat_conv_centroid(emb_centroids,emb_data.edge_index_centroid.T)
+                h_c= self.fc(emb_centroids).squeeze(0)
+        except:
+            tex='next'
         if x.numel() != 0:
-            x_processed = self.flatten_mlp(x)  # Shape: [total_cells_in_batch, 1024]
+            x = self.flatten_mlp(x)  # Shape: [total_cells_in_batch, 1024]
             
             # Combine emb_centroids with processed cell features
             # print(x_processed.shape, emb_centroids.shape)
-            x_combined = torch.cat([emb_centroids, x_processed], dim=0)  # Shape: [total_nodes, 1024]
+            x = torch.cat([emb_centroids, x], dim=0)  # Shape: [total_nodes, 1024]
         else:
-            x_combined=emb_centroids
+            x=emb_centroids
         # print(emb_centroids.shape,x_processed.shape,exps.shape)
         # print(x_combined.shape)
         # Adjust edge_index: The first 'num_clusters' nodes represent centroids.
@@ -46,7 +56,131 @@ class GATModel(nn.Module):
         # Apply GATConv across the entire batch graph
         
         # h=self.activate(self.gat_conv(x_combined, edge_index.T))
-        h = self.gat_conv(x_combined, edge_index.T)
+        
+        h = self.gat_conv(x, edge_index.T)
         h = self.fc(h).squeeze(0)
+        
         # print(h.shape,exps.shape)
-        return h,exps
+        return h,exps,h_c,exps_c
+    
+    
+class GATModel_2(nn.Module):
+    def __init__(self, input_dim=16*5*5, hidden_dim=512, output_dim=1024, num_heads=3,n_classes=460,centroid_layer=False):
+        super(GATModel_2, self).__init__()
+
+        # MLP for flattening emb_cells_in_cluster
+        self.flatten_mlp = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(input_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, output_dim)
+        )
+        
+        # GATConv for graph processing
+        self.centroid_layer=centroid_layer
+        self.gat_conv_centroid = GATv2Conv(output_dim, hidden_dim, heads=num_heads, concat=False)
+        self.gat_conv = GATv2Conv(output_dim, hidden_dim, heads=num_heads, concat=False)
+        self.activate = F.elu
+        self.fc = nn.Linear(hidden_dim, n_classes)
+    def forward(self, data):
+        # Node features and edge indices from DataLoader
+        emb_data, exps, exps_c= data
+        centroid_num = exps_c.shape[0]
+        x, edge_index = emb_data.x[centroid_num:], emb_data.edge_index  # x: [total_nodes, feature_dim], edge_index: [2, num_edges]
+        emb_centroids = emb_data.x[:centroid_num],  # Shape: [num_clusters, 1024], centroids for each cluster
+
+        # Process emb_cells_in_cluster with flatten_mlp (this processes cell features)
+        emb_centroids= emb_centroids.view(-1,1024)
+        h_c=None
+        try:
+            if self.centroid_layer ==True:
+                emb_centroids= self.gat_conv_centroid(emb_centroids,emb_data.edge_index_centroid.T)
+                h_c= self.fc(emb_centroids).squeeze(0)
+        except:
+            tex='next'
+        if x.numel() != 0:
+            x = self.flatten_mlp(x)  # Shape: [total_cells_in_batch, 1024]
+            
+            # Combine emb_centroids with processed cell features
+            # print(x_processed.shape, emb_centroids.shape)
+            x = torch.cat([emb_centroids, x], dim=0)  # Shape: [total_nodes, 1024]
+        else:
+            x=emb_centroids
+        # print(emb_centroids.shape,x_processed.shape,exps.shape)
+        # print(x_combined.shape)
+        # Adjust edge_index: The first 'num_clusters' nodes represent centroids.
+        # edge_index = edge_index.clone()  # Copy the original edge_index to avoid modifying in place
+        # edge_index[0] += emb_centroids.size(0)  # Shift the source indices for cells
+        # edge_index[1] += emb_centroids.size(0)  # Shift the target indices for cells
+
+        # Apply GATConv across the entire batch graph
+        
+        # h=self.activate(self.gat_conv(x_combined, edge_index.T))
+        
+        h = self.gat_conv(x, edge_index.T)
+        h = self.fc(h).squeeze(0)
+        
+        # print(h.shape,exps.shape)
+        return h,exps,h_c,exps_c
+    
+    
+class GATModel_3(nn.Module):
+    def __init__(self, input_dim=1024, hidden_dim=1024, output_dim=1024, num_heads=3,n_classes=460,centroid_layer=False):
+        super(GATModel_3, self).__init__()
+
+        # MLP for flattening emb_cells_in_cluster
+       
+        # GATConv for graph processing
+        self.centroid_layer=centroid_layer
+        self.gat_conv_centroid = GATv2Conv(input_dim, hidden_dim, heads=num_heads, concat=False)
+        self.gat_conv = GATv2Conv(input_dim, hidden_dim, heads=num_heads, concat=False)
+        self.activate = F.elu
+        self.fc = nn.Linear(hidden_dim, n_classes)
+    def forward(self, data):
+        # Node features and edge indices from DataLoader
+        emb_data, exps, exps_c= data
+        centroid_num = exps_c.shape[0]
+        edge_index = emb_data.edge_index  # x: [total_nodes, feature_dim], edge_index: [2, num_edges]
+        # emb_centroids = emb_data.x[:centroid_num]  # Shape: [num_clusters, 1024], centroids for each cluster
+        
+        # Process emb_cells_in_cluster with flatten_mlp (this processes cell features)
+        # emb_centroids= emb_centroids.view(-1,1024)
+        h_c=None
+       
+        if self.centroid_layer ==True:
+            emb_centroids= self.gat_conv_centroid(emb_data.x[:centroid_num],emb_data.edge_index_centroid.T)
+            h_c= self.fc(emb_centroids).squeeze(0)
+            x= torch.cat([emb_centroids, emb_data.x[centroid_num:]], dim=0)
+        else:
+            x=emb_data.x
+        # print(get_size(x))
+        # print(emb_centroids.shape,x_processed.shape,exps.shape)
+        # print(x_combined.shape)
+        # Adjust edge_index: The first 'num_clusters' nodes represent centroids.
+        # edge_index = edge_index.clone()  # Copy the original edge_index to avoid modifying in place
+        # edge_index[0] += emb_centroids.size(0)  # Shift the source indices for cells
+        # edge_index[1] += emb_centroids.size(0)  # Shift the target indices for cells
+
+        # Apply GATConv across the entire batch graph
+        
+        # h=self.activate(self.gat_conv(x_combined, edge_index.T))
+        
+        h = self.gat_conv(x, edge_index.T)
+        h = self.fc(h).squeeze(0)
+        
+        # print(h.shape,exps.shape)
+        return h,exps,h_c,exps_c
+def get_size(x):
+    print("Shape of tensor:", x.shape)
+
+# Get the number of elements in the tensor
+    num_elements = x.numel()
+    # print(f"Number of elements: {num_elements}")
+
+    # Get the size in bytes (assuming float32, which is 4 bytes per element)
+    size_in_bytes = num_elements * 4  # 4 bytes for float32
+    # print(f"Size of tensor in bytes: {size_in_bytes} bytes")
+
+    # Optionally, print the size in MB (divide by 1024^2)
+    size_in_MB = size_in_bytes / (1024 ** 2)
+    return size_in_MB

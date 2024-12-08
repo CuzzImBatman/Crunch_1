@@ -19,36 +19,67 @@ from sklearn.metrics import accuracy_score, roc_auc_score, f1_score, cohen_kappa
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 from model import ImageEncoder
 import pandas as pd
-# torch.multiprocessing.set_start_method('spawn')
-class CustomBatchSampler(Sampler):
-    def __init__(self, dataset, shuffle=True):
-        self.dataset = dataset
-        self.shuffle = shuffle
-        self.groups = defaultdict(list)
+from torch.utils.data import Sampler
 
-        # Group items by ID
-        for idx, item in enumerate(dataset):
-            self.groups[item['id']].append(idx)
+class PrecomputedTypeBatchSampler(Sampler):
+    def __init__(self, dataset, batch_size):
+        """
+        Args:
+            dataset: The dataset with items containing 'id'.
+            batch_size: Maximum batch size.
+        """
+        self.dataset = dataset
+        self.batch_size = batch_size
+
+        # Precompute indices grouped by 'id'
+        self.id_indices = {}
+        for idx in range(len(dataset)):
+            item_id = dataset[idx]['id']  # Fetch 'id' dynamically
+            if item_id not in self.id_indices:
+                self.id_indices[item_id] = []
+            self.id_indices[item_id].append(idx)
+
+        # Create batches for each ID group
+        self.batches = []
+        for indices in self.id_indices.values():
+            for i in range(0, len(indices), self.batch_size):
+                self.batches.append(indices[i:i + self.batch_size])
 
     def __iter__(self):
-        group_keys = list(self.groups.keys())
-        
-        # Shuffle group order if shuffle is enabled
-        if self.shuffle:
-            random.shuffle(group_keys)
-        
-        # For each group ID, shuffle items within the group if shuffle is enabled
-        shuffled_indices = []
-        for key in group_keys:
-            indices = self.groups[key][:]
-            if self.shuffle:
-                random.shuffle(indices)  # Shuffle items within each group ID
-            shuffled_indices.extend(indices)
-        
-        return iter(shuffled_indices)
+        return iter(self.batches)
 
     def __len__(self):
-        return len(self.dataset)
+        return len(self.batches)
+# torch.multiprocessing.set_start_method('spawn')
+# class CustomBatchSampler(Sampler):
+#     def __init__(self, dataset, shuffle=True):
+#         self.dataset = dataset
+#         self.shuffle = shuffle
+#         self.groups = defaultdict(list)
+
+#         # Group items by ID
+#         for idx, item in enumerate(dataset):
+#             self.groups[item['id']].append(idx)
+
+#     def __iter__(self):
+#         group_keys = list(self.groups.keys())
+        
+#         # Shuffle group order if shuffle is enabled
+#         if self.shuffle:
+#             random.shuffle(group_keys)
+        
+#         # For each group ID, shuffle items within the group if shuffle is enabled
+#         shuffled_indices = []
+#         for key in group_keys:
+#             indices = self.groups[key][:]
+#             if self.shuffle:
+#                 random.shuffle(indices)  # Shuffle items within each group ID
+#             shuffled_indices.extend(indices)
+        
+#         return iter(shuffled_indices)
+
+#     def __len__(self):
+#         return len(self.dataset)
 
 
 
@@ -59,6 +90,8 @@ def train_one_epoch(model, train_loader, optimizer,scheduler, device, epoch):
     train_loader = tqdm(train_loader, file=sys.stdout, ncols=100, colour='red')
 
     for i, batch in enumerate(train_loader):
+        # if i!=-1:
+        #     continue
         optimizer.zero_grad()
         label= batch['expression']
         label = np.array(label, dtype=np.float32)
@@ -89,44 +122,16 @@ def val_one_epoch(model, val_loader, device, data_type='val'):
         val_loader = tqdm(val_loader, file=sys.stdout, ncols=100, colour='green')
 
     for i, batch in enumerate(val_loader):
+        
         label= batch['expression']
         label = np.array(label, dtype=np.float32)
         label = torch.from_numpy(label).squeeze(1)
-        batch = batch
         label = label.to(device)
         output = model(batch)
         labels = torch.cat([labels, label], dim=0)
         preds = torch.cat([preds, output.detach()], dim=0)
 
     return preds.cpu(), labels.cpu()
-
-def preprocess_dataset(original_dataset, encoder, device):
-    """
-    Preprocess the images using the encoder and return the features and labels.
-    """
-    encoder.eval()  # Set encoder to evaluation mode
-    features = []
-    exps = []
-
-    dataloader = DataLoader(original_dataset, batch_size=1024, shuffle=False)
-    print(len(dataloader))
-    i=0
-    with torch.no_grad():
-        for images, exp in dataloader:
-            images = images.to(device)
-            
-            features_batch = encoder(images)
-            features.append(features_batch.cpu())
-            exps.extend(exp)
-            i=i+1
-            print(i)
-           
-
-    # Concatenate features along the batch dimension
-    features = torch.cat(features, dim=0)
-    exps=np.stack(exps)
-    return features, exps
-
 
 
 def parse():
@@ -135,7 +140,7 @@ def parse():
     parser.add_argument('--batch_size', type=int, default=4096, help='patch_size')
 
     parser.add_argument('--embed_dim', type=int, default=1024, help="The dimension of instance-level representations")
-    parser.add_argument('--patch_size', type=int, default=80, help='patch_size')
+    parser.add_argument('--patch_size', type=str, default='80', help='patch_size')
     parser.add_argument('--utils', type=str, default=None, help='utils path')
     parser.add_argument('--device', type=str, default='cuda:0', help='device to use for training / testing')
     parser.add_argument('--n_workers', type=int, default=0)
@@ -166,14 +171,20 @@ def save_checkpoint(epoch, model, optimizer,scheduler, args, filename="checkpoin
     print(f"Checkpoint saved at epoch {epoch}")
 
 def load_checkpoint(epoch, model, optimizer,scheduler,args):
-    filename=f"checkpoint_epoch_{epoch}.pth.tar"
-    dir=f"{args.save_dir}/model_result/{args.patch_size}"
-    checkpoint = torch.load(f"{dir}/{filename}")
+    try:
+        filename=f"checkpoint_epoch_best_{epoch}.pth.tar"
+        dir=f"{args.save_dir}/model_result/{args.patch_size}"
+        checkpoint = torch.load(f"{dir}/{filename}")
+    except:
+        filename=f"checkpoint_epoch_{epoch}.pth.tar"
+        dir=f"{args.save_dir}/model_result/{args.patch_size}"
+        checkpoint = torch.load(f"{dir}/{filename}")
+    
     model.load_state_dict(checkpoint['model_state_dict'])
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     # epoch = checkpoint['epoch']
-    # args = checkpoint['args']
-    # scheduler.load_state_dict(checkpoint['scheduler'])
+    args = checkpoint['args']
+    scheduler.load_state_dict(checkpoint['scheduler'])
     print(f"Checkpoint loaded from epoch {epoch}")
     return epoch + 1, args,model,scheduler,optimizer
 import anndata
@@ -200,16 +211,19 @@ def main(args):
     # np.savez('preprocessed_val.npz', features=features_np, exps=exps)
     # print(features_np)
     dir=args.embed_dir
-    NAMES=['DC1','DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I']
+    NAMES=['DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I']
+    train_list=NAMES
     if args.demo== True:
-        NAMES=NAMES[:2]
-    train_dataset = CLUSTER_BRAIN(emb_folder=dir,train=True,split=True,name_list=NAMES)
+        train_list=NAMES[:1]
+        NAMES=NAMES[:1]
+    train_dataset = CLUSTER_BRAIN(emb_folder=dir,train=True,split=True,name_list=train_list)
     # print(f'Using fold {args.fold}')
     print(f'train: {len(train_dataset)}')
     # print(f'valid: {len(val_set)}')
     val_dataset = [CLUSTER_BRAIN(emb_folder=dir,train=False,split=True,name_list=[name] ) for name in NAMES]
-    
-    train_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False,num_workers=3,pin_memory=True)
+    sampler = PrecomputedTypeBatchSampler(train_dataset, args.batch_size)
+
+    train_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=sampler,num_workers=3,pin_memory=True)
     val_loader = [DataLoader(v_set, batch_size=args.batch_size
                              , shuffle=False,num_workers=3,pin_memory=True )
                   for v_set in val_dataset]    
@@ -222,14 +236,14 @@ def main(args):
     
     
     model = WiKG(dim_in=args.embed_dim, dim_hidden=1024, topk=6, n_classes=args.n_classes, agg_type='bi-interaction', dropout=0.3, pool='mean').to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=1e-5)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0002, weight_decay=1e-5)
     scheduler = LR_Scheduler(optimizer=optimizer
                              ,num_epochs=args.epochs
-                             ,base_lr=0.001
+                             ,base_lr=0.0002
                              ,iter_per_epoch = len(train_dataLoader)
                              ,warmup_epochs= 10
-                            ,warmup_lr= 0.0003
-                            ,final_lr= 0.00001
+                            ,warmup_lr= 0.0002
+                            ,final_lr= 0.00005
                             ,constant_predictor_lr=False
 )
     
@@ -252,13 +266,14 @@ def main(args):
 
     
     start_epoch= args.start_epoch
-    # start_epoch, args, model,scheduler, optimizer = load_checkpoint(463, model, optimizer,scheduler,args)
-    for step in range(start_epoch*len(train_dataLoader)):
-        scheduler.step()
+    if start_epoch>0:
+        start_epoch, args, model,scheduler, optimizer = load_checkpoint(start_epoch, model, optimizer,scheduler,args)
+    # for step in range(start_epoch*len(train_dataLoader)):
+    #     scheduler.step()
     print(start_epoch)
     min_val_mse = 200.0
     min_val_mae = 200.0
-    print(f'start epoch: {start_epoch}, batch size: {args.batch_size}')
+    print(f'start epoch: {start_epoch}, batch size: {args.batch_size} ,end: {args.epochs}')
     for epoch in range(start_epoch, args.epochs):
         checkpoint_filename = f"checkpoint_best_epoch_{epoch}.pth.tar"
         train_logits = train_one_epoch(model=model, train_loader=train_dataLoader, optimizer=optimizer,scheduler=scheduler, device=device, epoch=epoch + 1)
@@ -309,7 +324,7 @@ def main(args):
             min_val_mse = min(min_val_mse, np.mean(mse_list))
             min_val_mae = min(min_val_mae, np.mean(mae_list))
        
-            if min_val_mae == mse and epoch>30:
+            if min_val_mae == np.mean(mse_list) and epoch>30:
                 print('best mse found... save best acc weights...')
                 
                 save_checkpoint(epoch, model, optimizer,scheduler, args, filename=checkpoint_filename)

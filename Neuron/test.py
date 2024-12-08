@@ -69,12 +69,12 @@ def val_one_epoch(model, val_loader, device, centroid,demo=False, encoder_mode =
 
     for i, data in enumerate(val_loader):
         # data = data.to(device)
-        graph_data= build_batch_graph(data,device)
+        graph_data= build_batch_graph(data,device,centroid_layer=False)
         # data.cpu()
         # graph_data.cpu()
         if encoder_mode ==True:
             centroid=0
-        output,label = model(graph_data)
+        output,label,_,_ = model(graph_data)
         output= output[centroid:]
         label= label[centroid:]
         
@@ -111,35 +111,25 @@ def parse():
 
     return parser.parse_args()
 
-def save_checkpoint(epoch, model, optimizer,scheduler, args, filename="checkpoint.pth.tar"):
-    checkpoint = {
-        'epoch': epoch,
-        'model_state_dict': model.state_dict(),
-        'optimizer_state_dict': optimizer.state_dict(),
-        'scheduler': scheduler.state_dict(),
-        'args': args
-    }
-    dir=f"{args.save_dir}/model_result"
-    if args.encoder_mode== True:
-        dir=f"{args.save_dir}/encoder"
-    os.makedirs(dir, exist_ok=True)
-    torch.save(checkpoint, f"{dir}/{filename}")
-    print(f"Checkpoint saved at epoch {epoch}")
+
 
 def load_checkpoint(epoch, model, optimizer,scheduler,args):
-    filename=f"checkpoint_epoch_{epoch}.pth.tar"
-    dir=f"{args.save_dir}/model_result"
+    try:
+        filename=f"checkpoint_epoch_{epoch}.pth.tar"
+        dir=f"{args.save_dir}"
+        checkpoint = torch.load(f"{dir}/{filename}")
+    except:
+        filename=f"checkpoint_epoch_best_{epoch}.pth.tar"
+        dir=f"{args.save_dir}"
+        checkpoint = torch.load(f"{dir}/{filename}")
     if args.encoder_mode== True:
-        dir=f"{args.save_dir}/model_result"
-    checkpoint = torch.load(f"{dir}/{filename}")
+        dir=f"{args.save_dir}"
     model.load_state_dict(checkpoint['model_state_dict'])
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     # epoch = checkpoint['epoch']
     # args = checkpoint['args']
     # scheduler.load_state_dict(checkpoint['scheduler'])
     print(f"Checkpoint loaded from epoch {epoch}")
-    return epoch + 1, args,model,scheduler,optimizer
-
 
 def main(args):
     print(args)
@@ -209,7 +199,7 @@ def main(args):
     min_val_mse = 200.0
     min_val_mae = 200.0
     start_epoch= args.start_epoch
-    start_epoch, args, model,scheduler, optimizer = load_checkpoint(107, model, optimizer,scheduler,args)
+    start_epoch, args, model,scheduler, optimizer = load_checkpoint(155, model, optimizer,scheduler,args)
     
     print(start_epoch)
     print(f'start epoch: {start_epoch}, batch size: {args.batch_size}')

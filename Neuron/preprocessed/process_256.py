@@ -10,7 +10,7 @@ sys.path.append('../')
 from model import ImageEncoder
 from dataset import DataGenerator
 from torch.utils.data import Dataset, DataLoader
-group='train'
+group='validation'
 dir = f'D:/DATA/Gene_expression/Crunch/patches/256/{group}'
 save_dir=f'D:/DATA/Gene_expression/Crunch/preprocessed/256/{group}'
 os.makedirs(save_dir,exist_ok=True)
@@ -37,8 +37,9 @@ for name in NAMES:
             emb= encoder(batch) 
             emb_stack.append(emb.cpu())
             i+=1
-            print(i)
+            print(i,emb.shape)
     emb_stack= torch.cat(emb_stack, dim=0)
+    print(emb_stack.shape)
     emb_stack=emb_stack.numpy()
     np.save(f'{save_dir}/{name}.npy',emb_stack)
     

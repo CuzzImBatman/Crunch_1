@@ -1,9 +1,5 @@
 import torch
-torch.autograd.set_detect_anomaly(True)
 import torch.nn as nn
-import torch.nn.functional as F
-from torch_geometric.nn import global_mean_pool, global_max_pool, GlobalAttention,GATv2Conv
-from torchvision import transforms
 import timm
 class ImageEncoder(nn.Module):
     def __init__(self):

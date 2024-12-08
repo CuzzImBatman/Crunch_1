@@ -1,9 +1,7 @@
 import os
 import pickle
-import torchvision.transforms as transforms
 import numpy as np
 import torch
-from tqdm import tqdm
 import sys
 sys.path.append('../')
 from dataset import DataGenerator
@@ -19,7 +17,6 @@ tensor_folder = dir
 NAMES = ['DC1','DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I']
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 encoder= ImageEncoder()
 encoder.eval()
 encoder=encoder.to(device)

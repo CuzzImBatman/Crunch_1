@@ -4,11 +4,9 @@ import pickle
 import torchvision.transforms as transforms
 from PIL import Image
 import numpy as np
-import torch
 from skimage.measure import regionprops
-from tqdm import tqdm
 dir = f'D:/data/crunch_large/data'
-# dir=f'F:/DATA/crunch_large/zip_server'
+dir=f'F:/DATA/crunch_large/zip_server'
 NAMES = ['DC1','DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I']
 # names = sample_names[2:]
 # with open(f'./pre_load/DC1_cells.pkl','wb') as f:
@@ -21,8 +19,9 @@ NAMES = ['DC1','DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I']
 #         cell_item['center']=[int(centroid[1]), int(centroid[0])]
 #         cell_list.append(cell_item)
 #     pickle.dump(cell_list,f)
-for name in NAMES[3:]:
-    cluster_path= '../cluster/train/cluster_data_split'
+group='validation'
+for name in NAMES:
+    cluster_path= f'../../cluster/{group}/cluster_data'
     
     with open(f'{cluster_path}/{name}_cells.pkl','rb') as f:
                 cell_locations = pickle.load(f)
@@ -32,8 +31,10 @@ for name in NAMES[3:]:
     centroids = kmeans.cluster_centers_
 
 # Filter out invalid clusters (those with 'train' = -1)
-    valid_clusters = cell_locations[cell_locations['train'] != -1]['cluster'].unique()
-    
+    if group == 'train':
+        valid_clusters = cell_locations[cell_locations['train'] != -1]['cluster'].unique()
+    else:
+        valid_clusters= cell_locations['cluster'].unique()  
     sdata = sd.read_zarr(f"{dir}/{name}.zarr")
     r=int(256/2)
     im= sdata['HE_registered'].to_numpy()
@@ -82,10 +83,9 @@ for name in NAMES[3:]:
         patches_list.append(patch)
     
     patches_list= np.stack(patches_list, axis=0)
-    save_dir= f'D:/DATA/Gene_expression/Crunch/preprocessed/256'
-    group='train'
+    save_dir= f'D:/DATA/Gene_expression/Crunch/patches/256'
     os.makedirs(f'{save_dir}/{group}',exist_ok=True)
-    
+    print(patches_list.shape)
     np.save(f'{save_dir}/{group}/{name}.npy',patches_list)
     
     print(f"Saved {patches_list.shape} patches to the list.")

@@ -1,12 +1,12 @@
 import os
 import spatialdata as sd
 import pickle
-import torchvision.transforms as transforms
+# import torchvision.transforms as transforms
 from PIL import Image
 import numpy as np
-import torch
-from skimage.measure import regionprops
-from tqdm import tqdm
+# import torch
+# from skimage.measure import regionprops
+# from tqdm import tqdm
 dir = f'D:/data/crunch_large/data/'
 # dir=f'F:/DATA/crunch_large/zip_server'
 NAMES = ['DC1','DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I']
@@ -21,7 +21,7 @@ NAMES = ['DC1','DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I']
 #         cell_item['center']=[int(centroid[1]), int(centroid[0])]
 #         cell_list.append(cell_item)
 #     pickle.dump(cell_list,f)
-for name in NAMES[7:]:
+for name in NAMES:
     pre_load_path= '../../pre_load'
     
     with open(f'{pre_load_path}/{name}_cells.pkl','rb') as f:

@@ -1,10 +1,7 @@
 import os
 import spatialdata as sd
 import pickle
-import torchvision.transforms as transforms
-from PIL import Image
 import numpy as np
-import torch
 from skimage.measure import regionprops
 from tqdm import tqdm
 dir = f'D:/data/crunch_large/data/'

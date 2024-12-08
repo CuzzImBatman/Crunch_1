@@ -1,4 +1,5 @@
-CUDA_LAUNCH_BLOCKING=1 python test.py --save_dir './' --device 'cpu' \
---batch_size 4096  \
---epoch 179 \
----embeb_dir 'D:/Downloads/crunch/WiKG
+python test.py --save_dir './' --device 'cuda' \
+    --batch_size 211  \
+    --start_epoch 135 \
+    --embed_dir 'D:/DATA/Gene_expression/Crunch/preprocessed'\
+    --local True
