@@ -24,7 +24,6 @@ def get_embeddings(model_path,model,r,save_path):
     train_spot_embeddings_dict ={}
     for i in NAMES:
         train_spot_embeddings = []
-        train_image_embeddings = []
 
         train_dataset= CLUSTER_BRAIN(train=True,split= True,name_list=[i])
         train_loader =DataLoader(train_dataset, batch_size=256, shuffle=False)

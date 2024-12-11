@@ -32,7 +32,7 @@ class DataGenerator(Dataset):
         # ]
         NAMES = list
         # NAMES= NAMES[:1]
-        
+        print(f'{numpy_folder}')
         tensors_list=[         
                 np.load(f'{numpy_folder}/{name}.npy') for name in NAMES
     ]

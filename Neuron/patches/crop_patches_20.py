@@ -43,7 +43,7 @@ for name in NAMES:
 
         # Ensure boundaries are within the image dimensions
             
-        if (minr <0) or (minc <0) or (maxr <0) or (maxc <0):
+        if (minr <0) or (minc <0) or (maxr >im.shape[1]) or (maxc >im.shape[2]):
             pad_top = max(0, -minr)
             minr = max(0, minr)
 

@@ -74,7 +74,8 @@ def train_one_epoch(model, train_loader, optimizer,scheduler, device, epoch,demo
             # optimizer.zero_grad()
             
             total_loss = (total_loss * i + loss.detach()) / (i + 1)
-            train_loader.desc = 'Train\t[epoch {}] lr: {}\tloss {}'.format(epoch, optimizer.param_groups[0]["lr"], round(total_loss.item(), 3))
+            if i%3==0:
+                train_loader.desc = 'Train\t[epoch {}] lr: {}\tloss {}'.format(epoch, optimizer.param_groups[0]["lr"], round(total_loss.item(), 3))
             # if i==3 and demo==True:
         #     break
     torch.cuda.empty_cache()
@@ -161,7 +162,7 @@ def load_checkpoint(epoch, model, optimizer,scheduler,args):
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     # epoch = checkpoint['epoch']
     # args = checkpoint['args']
-    # scheduler.load_state_dict(checkpoint['scheduler'])
+    scheduler.load_state_dict(checkpoint['scheduler'])
     print(f"Checkpoint loaded from epoch {epoch}")
     return epoch + 1, args,model,scheduler,optimizer
 
@@ -253,7 +254,7 @@ def main(args):
         checkpoint_filename = f"checkpoint_best_epoch_{epoch}.pth.tar"
         train_logits = train_one_epoch(model=model, train_loader=train_dataLoader
                                        ,demo=args.demo, optimizer=optimizer,scheduler=scheduler, device=device, epoch=epoch + 1,centroid_layer=args.centroid_layer)
-        if (epoch+1)%2 ==0: 
+        if (epoch+1)%8 ==0: 
             hvg_pcc_list = []
             heg_pcc_list = []
             mse_list = []

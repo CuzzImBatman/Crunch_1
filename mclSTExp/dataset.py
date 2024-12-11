@@ -9,16 +9,15 @@ import spatialdata as sd
 
 # import cv2
 from PIL import Image
-import pandas as pd
-import scprep as scp
+# import pandas as pd
 from PIL import ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 Image.MAX_IMAGE_PIXELS = None
-import torchvision.transforms.functional as TF
+# import torchvision.transforms.functional as TF
 import random
 import pickle
-from skimage.measure import regionprops
-from tqdm import tqdm
+# from skimage.measure import regionprops
+# from tqdm import tqdm
 import gc
 
 
@@ -61,7 +60,7 @@ class DATA_BRAIN(torch.utils.data.Dataset):
             anucleus_dict[i]= sdata['anucleus']
             sdata=None
             del sdata
-            gc.collect()
+            # gc.collect()
 
         
         # self.img_dict= {i: self.sdata_dict[i]['HE_original'].to_numpy()  for i in names}
@@ -285,7 +284,7 @@ class MINI_DATA_BRAIN(torch.utils.data.Dataset):
         self.cell_id_group=sdata['cell_id-group']
         self.anucleus= sdata['anucleus']
         del sdata
-        gc.collect()
+        # gc.collect()
 
         
         # self.img_dict= {i: self.sdata_dict[i]['HE_original'].to_numpy()  for i in names}
@@ -516,6 +515,7 @@ class CLUSTER_BRAIN(torch.utils.data.Dataset):
         lenngths=[]
         pos_dict={}
         exps_dict={}
+        cell_ids_dict={}
         for name in NAMES:
             preload_dir=f'../pre_load'
             # with open(f'{preload_dir}/{name}_cells.pkl','rb') as f:
@@ -523,7 +523,7 @@ class CLUSTER_BRAIN(torch.utils.data.Dataset):
             if split== True:
                 cluster_dir=f'../cluster/train/cluster_data_split'
             elif train == False:
-                cluster_dir=f'../cluster/validation'
+                cluster_dir=f'../cluster/validation//cluster'
                 
             with open(f'{cluster_dir}/{name}_cells.pkl','rb') as f:
                 cell_list_cluster = pickle.load(f)
@@ -566,41 +566,46 @@ class CLUSTER_BRAIN(torch.utils.data.Dataset):
             emb_cells_dict[name]            =emb_cells
             valid_cell_list_cluster_dict=None
             valid_cell_list_cluster=None
-            
+            cell_ids=valid_cell_list_cluster['cell_id'].to_numpy()
+            cell_ids_dict[name]=cell_ids
+        self.cell_ids_dict=cell_ids_dict
         self.exps_dict= exps_dict
         self.pos_dict= pos_dict
         self.emb_cells_dict             =emb_cells_dict
         self.lengths                    =lenngths
         self.cumlen =np.cumsum(self.lengths)
         self.id2name = dict(enumerate(NAMES))
-
+        self.global_to_local = self._create_global_index_map()
+    def _create_global_index_map(self):
+        """Create a mapping from global index to (dataset index, local index)."""
+        global_to_local = []
+        for i, name in enumerate(self.id2name):
+            local_indices = list(zip([i] * self.lengths[i], range(self.lengths[i])))
+            global_to_local.extend(local_indices)
+        return global_to_local
     def __getitem__(self, index):
-        i = 0
-        item = {}
-        # print(index)
-        while index >= self.cumlen[i]:
-            i += 1
-        idx = index
-        if i > 0:
-            idx = index - self.cumlen[i - 1]
-        # print(index,i,len(self.loc_dict[self.id2name[i]]))
+        # i = 0
+        # 
+        # # print(index)
+        # while index >= self.cumlen[i]:
+        #     i += 1
+        # idx = index
+        # if i > 0:
+        #     idx = index - self.cumlen[i - 1]
+        i, idx = self.global_to_local[index]
         emb_cell= self.emb_cells_dict[self.id2name[i]][idx]
-        # print(len(self.valid_cell_list_cluster_dict[self.id2name[i]]),idx,self.id2name[i])
-        # valid_cell_list_cluster= self.valid_cell_list_cluster_dict[self.id2name[i]].iloc[idx]
         exps= self.exps_dict[self.id2name[i]][idx]
-        # print(center)
-        # exps=  np.array([valid_cell_list_cluster['counts']])
-        # # print( centroid_exps.shape,index)
-        # normalized_counts = exps / exps.sum(axis=1, keepdims=True) * 100
-        # exps = np.log1p(normalized_counts)
+        cell_id= self.cell_ids_dict[self.id2name[i]][idx]
+        item = {}
+       
         item["feature"] = emb_cell
-        # x,y=valid_cell_list_cluster[['x', 'y']]
         x,y= self.pos_dict[self.id2name[i]][idx]
         # x=int(x)
         # y=int(y)
         item["position"] = torch.Tensor((x,y))
         item["expression"] = exps
         item['id']=i-1
+        item['cell_id']=cell_id
         return item
 
     def __len__(self):

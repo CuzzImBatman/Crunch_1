@@ -16,7 +16,6 @@ def generate_args():
     parser.add_argument('--batch_size', type=int, default=512, help='')
     parser.add_argument('--max_epochs', type=int, default=220, help='')#90 
     parser.add_argument('--temperature', type=float, default=1., help='temperature')
-    parser.add_argument('--fold', type=int, default=0, help='fold')
     parser.add_argument('--dim', type=int, default=460, help='spot_embedding dimension (# HVGs)')  
     parser.add_argument('--image_embedding_dim', type=int, default=1024, help='image_embedding dimension')
     parser.add_argument('--projection_dim', type=int, default=256, help='projection_dim ')
@@ -91,7 +90,6 @@ def train(model, train_dataLoader, optimizer,scheduler, epoch):
 
 def load_data(args):
     
-        print(f'load dataset: {args.dataset}')
         # train_dataset = DATA_BRAIN(train=True,r=int(args.patch_size/2), fold=args.fold)
         # dummy_dataset= Dummy(train=True)
         # batch_sampler = CustomBatchSampler(dummy_dataset, shuffle=True)
@@ -112,16 +110,9 @@ def load_data(args):
             print('local run')
             train_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=batch_sampler,pin_memory=False)
         print(len(train_dataset))
-        test_dataLoader=None
-        return train_dataLoader, test_dataLoader
+        return train_dataLoader
 
 
-
-def save_model(args, model, test_dataset=None, examples=[]):
-  
-        
-        torch.save(model.state_dict(),
-                   f"{args.path_save}/model_result/{args.dataset}/best_{args.fold}.pt")
 
 
 def save_checkpoint(epoch, model, optimizer,scheduler, args, filename="checkpoint.pth.tar"):
@@ -154,7 +145,6 @@ def load_checkpoint(epoch, model, optimizer,scheduler,args):
 def main():
     args = generate_args()
     print(args.resume)
-    args.fold = 0
     # device = torch.device("cuda:0,1" if torch.cuda.is_available() else "cpu") ## specify the GPU id's, GPU id's start from 0.
 
 
@@ -175,7 +165,7 @@ def main():
     #     model = nn.DataParallel(model)
     model.to(device)
     ratio = 512/args.batch_size
-    train_dataLoader,test_dataLoader = load_data(args)
+    train_dataLoader = load_data(args)
 
     optimizer = torch.optim.SGD(
         model.parameters(), lr=0.3*ratio, weight_decay=1e-5

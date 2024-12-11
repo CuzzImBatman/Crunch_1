@@ -573,12 +573,12 @@ class NeuronData_2(Dataset):
     # @staticmethod
     # def partition(lst, n):
     #     division = len(lst) / float(n)
-    #     return [lst[int(round(division * i)): int(round(division * (i + 1)))] for i in range(n)]
+    #     return [lst[int(round(division * i)): int(round(division * (i + 1)))] for i in range(n)]'D:/DATA/Gene_Expression/crunch/Register'
     
 class NeuronData_3(Dataset):
-    def __init__(self, emb_folder=f'D:/DATA/Gene_expression/Crunch/preprocessed'
+    def __init__(self,cluster_path= 'E:/DATA/crunch/tmp', emb_folder=f'D:/DATA/Gene_expression/Crunch/preprocessed'
                  , augmentation=True,encoder_mode=False, random_seed=1234, train=True, split= False,
-                 name_list= ['DC1','DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I']):
+                 name_list= ['DC1','DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I'],evel=False):
         self.augmentation = augmentation
         emb_dir=emb_folder
         # emb_dir=  
@@ -626,19 +626,20 @@ class NeuronData_3(Dataset):
             # with open(f'{preload_dir}/{name}_cells.pkl','rb') as f:
             #     cell_list_org= pickle.load(f)
             if split== True:
-                cluster_dir=f'../cluster/train/cluster_data_split'
+                cluster_dir=f'{cluster_path}/cluster/{group}/cluster_data_split'
             elif train == False:
-                cluster_dir=f'../cluster/validation/cluster_data'
+                cluster_dir=f'{cluster_path}/cluster/{group}/cluster_data'
                 
             with open(f'{cluster_dir}/{name}_cells.pkl','rb') as f:
                 cell_list_cluster = pickle.load(f)
-            with open(f'{cluster_dir}/{name}_kmeans.pkl','rb') as f:
-                kmeans = pickle.load(f)
+            # with open(f'{cluster_dir}/{name}_kmeans.pkl','rb') as f:
+            #     kmeans = pickle.load(f)
             
-            emb_cells= torch.from_numpy(np.load(f'{emb_dir}/80/{group}/{name}.npy'))
-            emb_centroids= torch.from_numpy(np.load(f'{emb_dir}/256/{group}/{name}.npy')) # len of valid_clusters(['group'] != -1) = len of emb_centroids
+            emb_cells= torch.from_numpy(np.load(f'{emb_dir}/24/{group}/{name}.npy'))
+            emb_centroids= torch.from_numpy(np.load(f'{emb_dir}/80/{group}/{name}.npy')) # len of valid_clusters(['group'] != -1) = len of emb_centroids
 
-            centroids = kmeans.cluster_centers_ # n x [x,y]
+            # centroids = kmeans.cluster_centers_ # n x [x,y]
+            centroids = cell_list_cluster.groupby('cluster')[['x', 'y']].mean().sort_index().reset_index().to_numpy()
             # Filter out invalid clusters (those with 'train' = -1)
             distances = cdist(centroids, centroids)
 
@@ -656,7 +657,6 @@ class NeuronData_3(Dataset):
             
             
             
-            emb_centroids= torch.from_numpy(np.load(f'{emb_dir}/256/{group}/{name}.npy')) # len of valid_clusters(['group'] != -1) = len of emb_centroids
           
             
             # print(emb_cells.shape)
@@ -715,7 +715,7 @@ class NeuronData_3(Dataset):
                 cells_list_in_cluster = valid_cell_list_cluster[valid_cell_list_cluster['cluster'] == valid_clusters[i]]
                 edge_index=get_edge_index(cells_list_in_cluster,k=6)
                 cluster_edge_index.append(edge_index)
-                x_center, y_center = centroids[i]
+                x_center, y_center = centroids[i,1],centroids[i,2]
                 if group == 'train':
                     half_side = int(256 / 2)
                     x_min, x_max = x_center - half_side, x_center + half_side
@@ -870,7 +870,7 @@ def build_batch_graph(batch,device,centroid_layer):
     node_offset = 0  # To adjust indices for each cluster
     # print(batch.x.shape)
     centroid_exps = np.vstack(batch.centroid_exps)  # Get centroid expression data
-    print(centroid_exps.shape)
+    # print(centroid_exps.shape)
     # print(batch.x.shape, batch.emb_centroid)
     if batch.x.shape[0]!=0:
         cell_exps = np.vstack(batch.cell_exps)  # Get cell expression data
