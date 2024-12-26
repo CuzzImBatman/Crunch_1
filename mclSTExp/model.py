@@ -253,8 +253,8 @@ class mclSTExp_Attention(nn.Module):
 class mclSTExp_Attention_Pretrain(nn.Module):
     def __init__(self,encoder_name, temperature, image_dim, spot_dim, projection_dim, heads_num, heads_dim, head_layers, dropout=0.):
         super().__init__()
-        self.x_embed = nn.Embedding(65536, spot_dim)
-        self.y_embed = nn.Embedding(65536, spot_dim)
+        self.x_embed = nn.Embedding(80000, spot_dim) #65536  27000 80000
+        self.y_embed = nn.Embedding(80000, spot_dim)  #65536  27000 80000
         
         self.spot_encoder = nn.Sequential(
             *[attn_block(spot_dim, heads=heads_num, dim_head=heads_dim, mlp_dim=spot_dim, dropout=0.) for _ in

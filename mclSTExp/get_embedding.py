@@ -17,7 +17,7 @@ NAMES = ['DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I']
 
 
 
-def get_embeddings(model_path,model,r,save_path):
+def get_embeddings(model_path,args,model,r,save_path):
     # train_image_embeddings_dict=[]
     # train_spot_embeddings_dict=[]
     test_image_embeddings_dict = {}
@@ -25,7 +25,7 @@ def get_embeddings(model_path,model,r,save_path):
     for i in NAMES:
         train_spot_embeddings = []
 
-        train_dataset= CLUSTER_BRAIN(train=True,split= True,name_list=[i])
+        train_dataset= CLUSTER_BRAIN(train=True,split= True,name_list=[i], centroid=args.centroid)
         train_loader =DataLoader(train_dataset, batch_size=256, shuffle=False)
         checkpoint = torch.load(model_path)
         state_dict=checkpoint['model_state_dict']
@@ -66,7 +66,7 @@ def get_embeddings(model_path,model,r,save_path):
     for i in NAMES:
         test_image_embeddings = []
 
-        test_dataset= CLUSTER_BRAIN(train=False,split= True,name_list=[i])
+        test_dataset= CLUSTER_BRAIN(train=False,split= True,name_list=[i], centroid=args.centroid)
         test_loader =DataLoader(test_dataset, batch_size=256, shuffle=False)
         checkpoint = torch.load(model_path)
         state_dict=checkpoint['model_state_dict']
@@ -143,7 +143,7 @@ def save_embeddings(model_path, save_path, args,r):
                                head_layers=args.heads_layers,
                                dropout=args.dropout)
 
-    train_spot_embeddings_all,test_image_embeddings_all = get_embeddings(model_path,model,r,save_path)
+    train_spot_embeddings_all,test_image_embeddings_all = get_embeddings(model_path,args,model,r,save_path)
     for name in NAMES:
         train_spot_embeddings_all[name] = train_spot_embeddings_all[name].cpu().numpy()
         print("train spot_embeddings_all.shape", train_spot_embeddings_all[name].shape)
@@ -184,138 +184,18 @@ def main():
     patch_size= int(name_parse.split('-')[0])
     epoch=name_parse.split('-')[1]
     MODEL_NAME= f'checkpoint_epoch_{epoch}.pth.tar'
-    # NAMES=NAMES[:1]
-    # train_datasize=[]
-    # test_datasize=[]
 
-
-    # split_path= "./train_split"
-
-    # for i in NAMES:
-    #     with open(f'./train_split/{i}_train.pkl','rb') as f:  # Python 3: open(..., 'rb')
-    #         split_train_binary = pickle.load(f)
-        
-    #     train_datasize.append(sum(split_train_binary))
-    #     test_datasize.append(len(split_train_binary)-sum(split_train_binary))
-        
-
-    # datasize = [np.load(f"./data/preprocessed_expression_matrices/mcistexp/{name}/preprocessed_matrix.npy").shape[1] for
-    #             name in names]
-
-   
-    save_embeddings(model_path=f"./model_result/{patch_size}/{MODEL_NAME}",
-                    save_path=f"./model_result/{patch_size}/{epoch}/",
+    if args.centroid== True:
+        model_path=f"./model_result_centroid/{patch_size}/{MODEL_NAME}"
+        save_path=f"./model_result_centroid/{patch_size}/{epoch}/"
+    else:
+        model_path=f"./model_result/{patch_size}/{MODEL_NAME}"
+        save_path=f"./model_result/{patch_size}/{epoch}/"
+    save_embeddings(model_path=model_path,
+                    save_path=save_path,
                     args=args
                     ,r=int(patch_size/2))
 
 if __name__ == '__main__':
     main()
 
-# spot_expressions = [np.load(f"./data/preprocessed_expression_matrices/mcistexp/{name}/preprocessed_matrix.npy")
-#                     for name in names]
-# train_spot_expressions, test_spot_expressions, gene_list=get_expression()
-
-
-    
-# hvg_pcc_list = []
-# heg_pcc_list = []
-# mse_list = []
-# mae_list = []
-# fold=0
-# for test_name in NAMES[:1]:
-#     save_path = f"./embedding_result/{patch_size}/{MODEL_NAME}"
-#     train_spot_embeddings = [np.load(save_path + f"train_spot_embeddings_{i}.npy") for i in NAMES]
-#     test_spot_embeddings = [np.load(save_path + f"test_spot_embeddings_{test_name}.npy")]
-
-#     image_embeddings = np.load(save_path + f"test_img_embeddings_{test_name}.npy")
-
-
-#     image_query = image_embeddings
-#     expression_gt = test_spot_expressions[NAMES.index(test_name)]
-#     spot_embeddings = train_spot_embeddings
-#     spot_expressions_rest = train_spot_expressions
-
-#     spot_key = np.concatenate(spot_embeddings, axis=1)
-#     # spot_key=spot_embeddings
-#     expression_key = np.concatenate(spot_expressions_rest, axis=1)
-
-#     method = "weighted"
-#     # save_path = f"./mcistexp_pred_att/{names[fold]}/"
-#     os.makedirs(save_path, exist_ok=True)
-#     if image_query.shape[1] != 256:
-#         image_query = image_query.T
-#         print("image query shape: ", image_query.shape)
-#     if expression_gt.shape[0] != image_query.shape[0]:
-#         expression_gt = expression_gt.T
-#         print("expression_gt shape: ", expression_gt.shape)
-#     if spot_key.shape[1] != 256:
-#         spot_key = spot_key.T
-#         print("spot_key shape: ", spot_key.shape)
-#     if expression_key.shape[0] != spot_key.shape[0]:
-#         expression_key = expression_key.T
-#         print("expression_key shape: ", expression_key.shape)
-
-#     indices = find_matches(spot_key, image_query, top_k=200)
-#     matched_spot_embeddings_pred = np.zeros((indices.shape[0], spot_key.shape[1]))
-#     matched_spot_expression_pred = np.zeros((indices.shape[0], expression_key.shape[1]))
-#     with open(f'indices.pkl', 'wb') as f:  # Python 3: open(..., 'wb')
-#                 pickle.dump(indices, f)
-    
-
-#     for i in range(indices.shape[0]):
-#         a = np.linalg.norm(spot_key[indices[i, :], :] - image_query[i, :], axis=1, ord=1)
-#         # from sklearn.metrics.pairwise import cosine_similarity
-#         #
-#         # a = 1 - cosine_similarity(spot_key[indices[i, :], :], image_query[i, :].reshape(1, -1))
-#         reciprocal_of_square_a = np.reciprocal(a ** 2)
-#         weights = reciprocal_of_square_a / np.sum(reciprocal_of_square_a)
-#         weights = weights.flatten()
-#         matched_spot_embeddings_pred[i, :] = np.average(spot_key[indices[i, :], :], axis=0, weights=weights)
-#         matched_spot_expression_pred[i, :] = np.average(expression_key[indices[i, :], :], axis=0,
-#                                                         weights=weights)
-
-#     # np.save(save_path + "matched_spot_expression_pred_mclSTExp.npy", matched_spot_expression_pred.T)
-#     true = expression_gt
-#     pred = matched_spot_expression_pred
-
-
-#     adata_true = anndata.AnnData(true)
-#     adata_pred = anndata.AnnData(pred)
-
-#     adata_pred.var_names = gene_list
-#     adata_true.var_names = gene_list
-
-#     with open(f'adata_true.pkl', 'wb') as f:  # Python 3: open(..., 'wb')
-#                 pickle.dump(adata_true, f)
-#     with open(f'adata_pred.pkl', 'wb') as f:  # Python 3: open(..., 'wb')
-#                 pickle.dump(adata_pred, f)
-#     with open(f'true.pkl', 'wb') as f:  # Python 3: open(..., 'wb')
-#                 pickle.dump(true, f)
-#     with open(f'pred.pkl', 'wb') as f:  # Python 3: open(..., 'wb')
-#                 pickle.dump(pred, f)            
-#     gene_mean_expression = np.mean(adata_true.X, axis=0)
-#     top_50_genes_indices = np.argsort(gene_mean_expression)[::-1][:50]
-#     top_50_genes_names = adata_true.var_names[top_50_genes_indices]
-#     top_50_genes_expression = adata_true[:, top_50_genes_names]
-#     top_50_genes_pred = adata_pred[:, top_50_genes_names]
-
-#     heg_pcc, heg_p = get_R(top_50_genes_pred, top_50_genes_expression)
-#     hvg_pcc, hvg_p = get_R(adata_pred, adata_true)
-#     hvg_pcc = hvg_pcc[~np.isnan(hvg_pcc)]
-
-#     heg_pcc_list.append(np.mean(heg_pcc))
-#     hvg_pcc_list.append(np.mean(hvg_pcc))
-
-#     from sklearn.metrics import mean_squared_error, mean_absolute_error
-
-#     mse = mean_squared_error(true, pred)
-#     mse_list.append(mse)
-#     print("Mean Squared Error (MSE): ", mse)
-#     mae = mean_absolute_error(true, pred)
-#     mae_list.append(mae)
-#     print("Mean Absolute Error (MAE): ", mae)
-
-#     print(f"avg heg pcc: {np.mean(heg_pcc_list):.4f}")
-#     print(f"avg hvg pcc: {np.mean(hvg_pcc_list):.4f}")
-#     print(f"Mean Squared Error (MSE): {np.mean(mse_list):.4f}")
-#     print(f"Mean Absolute Error (MAE): {np.mean(mae_list):.4f}")

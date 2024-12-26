@@ -15,7 +15,7 @@ NAMES = ['DC1','DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I']
 #         cell_item={}
 #         cell_item['cell_id']= props.label
 #         centroid = props.centroid
-#         cell_item['center']=[int(centroid[1]), int(centroid[0])]
+#         cell_item['center']=[int(centroid[0]), int(centroid[1])]
 #         cell_list.append(cell_item)
 #     pickle.dump(cell_list,f)
 for name in NAMES:

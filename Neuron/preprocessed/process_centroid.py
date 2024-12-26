@@ -11,9 +11,11 @@ from model import ImageEncoder
 from dataset import DataGenerator
 from torch.utils.data import Dataset, DataLoader
 group_type=['train','evel']
+group_type=['train']
+
 absolute_path='E:/DATA/crunch/tmp'
 resources_path= 'C:/DATA/Crunch/submit/resources'
-r=int(80/2)
+r=int(256/2)
 
 
 

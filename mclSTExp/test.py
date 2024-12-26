@@ -113,10 +113,10 @@ def main():
     train_spot_expressions=[]
     test_spot_expressions=[]
     for name in NAMES:
-        train_set= CLUSTER_BRAIN(train=True, split = True,name_list=[name])
+        train_set= CLUSTER_BRAIN(train=True, split = True,name_list=[name],centroid=args.centroid)
         train_spot_expressions.append(extract_expressions(train_set))
         print(train_spot_expressions[-1].shape)
-        test_set= CLUSTER_BRAIN(train= False,split= True, name_list=[name])
+        test_set= CLUSTER_BRAIN(train= False,split= True, name_list=[name],centroid=args.centroid)
         test_spot_expressions.append(extract_expressions(test_set))
         train_set=None
         test_set=None
@@ -135,7 +135,10 @@ def main():
     heg_pcc_list = []
     mse_list = []
     mae_list = []
-    save_path = f"./model_result/{patch_size}/{epoch}/"
+    if args.centroid== True:
+        save_path = f"./model_result_centroid/{patch_size}/{epoch}/"
+    else:
+        save_path = f"./model_result/{patch_size}/{epoch}/"
     csv_file_path = os.path.join(save_path, "results.csv")
     train_spot_embeddings = [np.load(save_path + f"train_spot_embeddings_{name}.npy") for name in NAMES]
     with open(csv_file_path, mode="w", newline="") as file:
@@ -149,28 +152,20 @@ def main():
         # Write headers
             writer.writerow(["Test Name", "Drop out Slide", "MSE", "MAE", "Avg HEG PCC", "Avg HVG PCC"])
             index= NAMES.index(test_name)
-            # for index in range(len(train_datasize)):
-            
-            
-            # print(train_spot_embeddings.shape)
-            # test_spot_embeddings = [np.load(save_path + f"test_spot_embeddings_{test_name}.npy")]
-            # selected_columns = np.random.choice(train_spot_embeddings[:,index_start:index_end].shape[1], size=4000, replace=False)
-            # selected_array = train_spot_embeddings[:,index_start:index_end][:, selected_columns]
-            # train_spot_embeddings = np.concatenate((train_spot_embeddings[:,:index_start], train_spot_embeddings[:,index_end:]),axis=1)
-            spot_embeddings= train_spot_embeddings[:index] + train_spot_embeddings[index+1:]
-            
-            spot_embeddings=np.concatenate(spot_embeddings, axis=1)
-            image_embeddings = np.load(save_path + f"test_image_embeddings_{test_name}.npy")
 
+            image_embeddings = np.load(save_path + f"test_image_embeddings_{test_name}.npy")
 
             image_query = image_embeddings
             expression_gt = test_spot_expressions[NAMES.index(test_name)]
             # spot_embeddings = train_spot_embeddings
             #########
-            # spot_expressions_rest = train_spot_expressions
-            spot_expressions_rest= train_spot_expressions[:index] + train_spot_expressions[index+1:]
-            ##########################
             
+            spot_embeddings=train_spot_embeddings
+            spot_expressions_rest = train_spot_expressions
+            # spot_embeddings= train_spot_embeddings[:index] + train_spot_embeddings[index+1:]
+            # spot_expressions_rest= train_spot_expressions[:index] + train_spot_expressions[index+1:]
+            ##########################
+            spot_embeddings=np.concatenate(spot_embeddings, axis=1)
             # spot_key = np.concatenate(spot_embeddings, axis=1)
             spot_key=spot_embeddings
             expression_key = np.concatenate(spot_expressions_rest, axis=0)
@@ -205,6 +200,7 @@ def main():
                 #
                 # a = 1 - cosine_similarity(spot_key[indices[i, :], :], image_query[i, :].reshape(1, -1))
                 reciprocal_of_square_a = np.reciprocal(a ** 2)
+                # reciprocal_of_square_a = np.reciprocal(a)
                 weights = reciprocal_of_square_a / np.sum(reciprocal_of_square_a)
                 weights = weights.flatten()
                 matched_spot_embeddings_pred[i, :] = np.average(spot_key[indices[i, :], :], axis=0, weights=weights)

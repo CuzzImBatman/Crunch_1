@@ -83,7 +83,7 @@ from collections import defaultdict
 local_index = 0
 label_map = defaultdict(list)
 
-for name in NAMES[5:]:
+for name in NAMES:
     pre_load_path = '../../pre_load'
     with open(f'{pre_load_path}/{name}_cells.pkl', 'rb') as f:
         cell_list = pickle.load(f)

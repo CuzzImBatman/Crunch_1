@@ -33,6 +33,7 @@ def generate_args():
     parser.add_argument('--demo', type=bool, default=False)
     parser.add_argument('--device', type=str, default='cuda:0')
     parser.add_argument('--local', type=bool, default=False)
+    parser.add_argument('--centroid', type=bool, default=False)
 
     args = parser.parse_args()
     return args
@@ -99,7 +100,7 @@ def load_data(args):
         dir=args.embed_dir
         if args.demo == True:
             NAMES=NAMES[:2]
-        train_dataset = CLUSTER_BRAIN(emb_folder=dir,train=True,split=True,name_list=NAMES)
+        train_dataset = CLUSTER_BRAIN(emb_folder=dir,train=True,split=True,name_list=NAMES,centroid=args.centroid)
         batch_sampler = CustomBatchSampler(train_dataset, shuffle=True)
 
         # dummy_dataset= Dummy(train=True)
@@ -123,14 +124,14 @@ def save_checkpoint(epoch, model, optimizer,scheduler, args, filename="checkpoin
         'scheduler': scheduler.state_dict(),
         'args': args
     }
-    dir=f"{args.path_save}/model_result/{args.patch_size}"
+    dir=f"{args.path_save}"
     os.makedirs(dir, exist_ok=True)
     torch.save(checkpoint, f"{dir}/{filename}")
     print(f"Checkpoint saved at epoch {epoch}")
 
 def load_checkpoint(epoch, model, optimizer,scheduler,args):
     filename=f"checkpoint_epoch_{epoch}.pth.tar"
-    dir=f"{args.path_save}/model_result/{args.patch_size}"
+    dir=f"{args.path_save}"
     checkpoint = torch.load(f"{dir}/{filename}")
     model.load_state_dict(checkpoint['model_state_dict'])
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
@@ -139,7 +140,6 @@ def load_checkpoint(epoch, model, optimizer,scheduler,args):
     # scheduler.load_state_dict(checkpoint['scheduler'])
     print(f"Checkpoint loaded from epoch {epoch}")
     return epoch + 1, args,model,scheduler,optimizer
-
 # Apply the custom learning rate scheduler
 
 def main():

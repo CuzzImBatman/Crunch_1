@@ -50,7 +50,10 @@ class DataGenerator(Dataset):
         return len(self.tensors_list)
 
     def __getitem__(self, index):
-        tensor =transforms.ToTensor()(self.tensors_list[index])
+        try:
+            tensor = torch.from_numpy(self.tensors_list[index])
+        except:
+            tensor =transforms.ToTensor()(self.tensors_list[index])
 
         if self.augmentation:
             # Flip upside-down (vertically)

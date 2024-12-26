@@ -21,32 +21,59 @@ NAMES = ['DC1','DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I']
 #     pickle.dump(cell_list,f)
 r=int(80/2)
 group_type=['train','evel']
+group_type=['train']
+
 absolute_path='E:/DATA/crunch/tmp'
-absolute_path='D:\\DATA\\Gene_Expression\\crunch\\Register'
+absolute_path_old='D:\\DATA\\Gene_Expression\\crunch\\Register'
 for group in group_type:
     for name in NAMES:
         try:
             cluster_path= f'{absolute_path}/cluster/{group}/cluster_data_split'
             with open(f'{cluster_path}/{name}_cells.pkl','rb') as f:
                     cell_locations = pickle.load(f)
-            with open(f'{cluster_path}/{name}_kmeans.pkl','rb') as f:
-                    kmeans= pickle.load(f)
+            # with open(f'{cluster_path}/{name}_kmeans.pkl','rb') as f:
+            #         kmeans= pickle.load(f)
         except:
             cluster_path= f'{absolute_path}/cluster/{group}/cluster_data'
             with open(f'{cluster_path}/{name}_cells.pkl','rb') as f:
                     cell_locations = pickle.load(f)
-            with open(f'{cluster_path}/{name}_kmeans.pkl','rb') as f:
-                        kmeans= pickle.load(f)
+            # with open(f'{cluster_path}/{name}_kmeans.pkl','rb') as f:
+            #             kmeans= pickle.load(f)
         centroids = cell_locations.groupby('cluster')[['x', 'y']].mean().sort_index().reset_index().to_numpy()
+        
+        # try:
+        #     cluster_path= f'{absolute_path_old}/cluster/{group}/cluster_data_split'
+        #     with open(f'{cluster_path}/{name}_cells.pkl','rb') as f:
+        #             cell_locations_old = pickle.load(f)
+           
+        # except:
+        #     cluster_path= f'{absolute_path_old}/cluster/{group}/cluster_data'
+        #     with open(f'{cluster_path}/{name}_cells.pkl','rb') as f:
+        #             cell_locations_old = pickle.load(f)
+        # cell_locations['cluster'] = cell_locations_old['cluster']  
+        # cluster_path= f'{absolute_path}/cluster/{group}/cluster_data_split'
+        # with open(f'{cluster_path}/{name}_cells.pkl','wb') as f:
+        #             pickle.dump(cell_locations,f) 
+        centroids = cell_locations.groupby('cluster')[['x', 'y']].mean().sort_index().reset_index().to_numpy()
+        valid = all(prop['train'].nunique() == 1 for _, prop in cell_locations.groupby('cluster'))
+
+        if valid:
+            print("The dataframe satisfies the condition.")
+        else:
+            print("The dataframe does not satisfy the condition.")
+        # print(cell_locations['cluster'])
         # centroids_old = kmeans.cluster_centers_
 
         print(len(centroids))
         print(centroids[0,1],centroids[0,2])
     # Filter out invalid clusters (those with 'train' = -1)
-        if group == 'train':
-            valid_clusters = cell_locations[cell_locations['train'] != -1]['cluster'].unique()
-        else:
-            valid_clusters= cell_locations['cluster'].unique()  
+        # if group == 'train':
+        #     valid_clusters = cell_locations[cell_locations['train'] != -1]['cluster'].unique()
+        # else:
+        #     valid_clusters= cell_locations['cluster'].unique()  
+        valid_clusters= cell_locations['cluster'].unique() 
+        valid_clusters = np.sort(valid_clusters)
+
         sdata = sd.read_zarr(f"{dir}/{name}.zarr")
     
         im= sdata['HE_original'].to_numpy()

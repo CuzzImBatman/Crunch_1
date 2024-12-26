@@ -1,0 +1,186 @@
+Mean Squared Error (MSE) DC5:  0.075974858807488
+Mean Absolute Error (MAE) DC5: 0.10007203767803975
+avg heg pcc DC5: 0.3321
+avg hvg pcc DC5: 0.2143
+
+Mean Squared Error (MSE) UC1_I:  0.08863260552648532
+Mean Absolute Error (MAE) UC1_I: 0.11761604437675854
+avg heg pcc UC1_I: 0.4009
+avg hvg pcc UC1_I: 0.2192
+
+Mean Squared Error (MSE) UC1_NI:  0.08844231219163468
+Mean Absolute Error (MAE) UC1_NI: 0.12050881998950809
+avg heg pcc UC1_NI: 0.5002
+avg hvg pcc UC1_NI: 0.2263
+
+Mean Squared Error (MSE) UC6_I:  0.09261883061215326
+Mean Absolute Error (MAE) UC6_I: 0.11253920553039097
+avg heg pcc UC6_I: 0.4965
+avg hvg pcc UC6_I: 0.2204
+
+Mean Squared Error (MSE) UC6_NI:  0.08520524758619444
+Mean Absolute Error (MAE) UC6_NI: 0.10499482570033215
+avg heg pcc UC6_NI: 0.4021
+avg hvg pcc UC6_NI: 0.2286
+
+Mean Squared Error (MSE) UC7_I:  0.09054622738286561
+Mean Absolute Error (MAE) UC7_I: 0.11348011573606365
+avg heg pcc UC7_I: 0.4550
+avg hvg pcc UC7_I: 0.2196
+
+Mean Squared Error (MSE) UC9_I:  0.08685276353999126
+Mean Absolute Error (MAE) UC9_I: 0.11131200203653052
+avg heg pcc UC9_I: 0.4802
+avg hvg pcc UC9_I: 0.2434
+--------
+
+avg heg pcc: 0.4382
+avg hvg pcc: 0.2245
+Mean Squared Error (MSE): 0.0869
+Mean Absolute Error (MAE): 0.1115
+
+
+
+
+
+
+
+
+
+Mean Squared Error (MSE) DC5:  0.07739397477782135
+Mean Absolute Error (MAE) DC5: 0.10140270642461342
+avg heg pcc DC5: 0.3201
+avg hvg pcc DC5: 0.2083
+
+Mean Squared Error (MSE) UC1_I:  0.0928838379856949
+Mean Absolute Error (MAE) UC1_I: 0.11831300896646287
+avg heg pcc UC1_I: 0.3953
+avg hvg pcc UC1_I: 0.2067
+
+Mean Squared Error (MSE) UC1_NI:  0.08981716599632086
+Mean Absolute Error (MAE) UC1_NI: 0.12112237601694206
+avg heg pcc UC1_NI: 0.4941
+avg hvg pcc UC1_NI: 0.2224
+
+Mean Squared Error (MSE) UC6_I:  0.09336060877304694
+Mean Absolute Error (MAE) UC6_I: 0.11496964446294543
+avg heg pcc UC6_I: 0.4992
+avg hvg pcc UC6_I: 0.2173
+
+Mean Squared Error (MSE) UC6_NI:  0.08572227863627994
+Mean Absolute Error (MAE) UC6_NI: 0.10562075955711085
+avg heg pcc UC6_NI: 0.3954
+avg hvg pcc UC6_NI: 0.2269
+
+Mean Squared Error (MSE) UC7_I:  0.0912866520949542
+Mean Absolute Error (MAE) UC7_I: 0.11372076369129837
+avg heg pcc UC7_I: 0.4523
+avg hvg pcc UC7_I: 0.2163
+
+Mean Squared Error (MSE) UC9_I:  0.08844406626189746
+Mean Absolute Error (MAE) UC9_I: 0.11255725634336053
+avg heg pcc UC9_I: 0.4691
+avg hvg pcc UC9_I: 0.2360
+
+avg heg pcc: 0.43221
+avg hvg pcc: 0.2191
+Mean Squared Error (MSE): 0.08845
+Mean Absolute Error (MAE): 0.11254
+
+
+
+
+Mean Squared Error (MSE) DC5:  0.07828194865651066
+Mean Absolute Error (MAE) DC5: 0.10165701422252292
+avg heg pcc DC5: 0.3819
+avg hvg pcc DC5: 0.1972
+
+Mean Squared Error (MSE) UC1_I:  0.08911331672207665
+Mean Absolute Error (MAE) UC1_I: 0.1178339010409282
+avg heg pcc UC1_I: 0.3861
+avg hvg pcc UC1_I: 0.2130
+
+
+Mean Squared Error (MSE) UC1_NI:  0.0897266461472897
+Mean Absolute Error (MAE) UC1_NI: 0.12164580962831062
+avg heg pcc UC1_NI: 0.4699
+avg hvg pcc UC1_NI: 0.2178
+
+Mean Squared Error (MSE) UC6_I:  0.0938313948233606
+Mean Absolute Error (MAE) UC6_I: 0.11406535796600295
+avg heg pcc UC6_I: 0.4415
+avg hvg pcc UC6_I: 0.2126
+
+
+Mean Squared Error (MSE) UC6_NI:  0.08493058196019047
+Mean Absolute Error (MAE) UC6_NI: 0.10501683471911367
+avg heg pcc UC6_NI: 0.4287
+avg hvg pcc UC6_NI: 0.2279
+
+Mean Squared Error (MSE) UC7_I:  0.0918238641234399
+Mean Absolute Error (MAE) UC7_I: 0.11463812579490304
+avg heg pcc UC7_I: 0.4206
+avg hvg pcc UC7_I: 0.2118
+
+Mean Squared Error (MSE) UC9_I:  0.08691822412428443
+Mean Absolute Error (MAE) UC9_I: 0.11229608084050494
+avg heg pcc UC9_I: 0.4668
+avg hvg pcc UC9_I: 0.2401
+avg heg pcc: 0.4279
+avg hvg pcc: 0.2172
+Mean Squared Error (MSE): 0.0878
+Mean Absolute Error (MAE): 0.1125
+
+
+Mean Squared Error (MSE) DC5:  0.07950214154187257
+Mean Absolute Error (MAE) DC5: 0.10290716726199696
+avg heg pcc DC5: 0.3726
+avg hvg pcc DC5: 0.1921
+image query shape:  (20404, 256)
+spot_key shape:  (789468, 256)
+Mean Squared Error (MSE) UC1_I:  0.09397672676819746
+Mean Absolute Error (MAE) UC1_I: 0.11889224300157325
+avg heg pcc UC1_I: 0.3608
+avg hvg pcc UC1_I: 0.1978
+image query shape:  (7334, 256)
+spot_key shape:  (904605, 256)
+E:\conda\envs\thitogene\lib\site-packages\scipy\stats\_stats_py.py:4781: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+  warnings.warn(stats.ConstantInputWarning(msg))
+Mean Squared Error (MSE) UC1_NI:  0.09102508807147487
+Mean Absolute Error (MAE) UC1_NI: 0.12214565196068983
+avg heg pcc UC1_NI: 0.4632
+avg hvg pcc UC1_NI: 0.2133
+image query shape:  (22696, 256)
+spot_key shape:  (770902, 256)
+Mean Squared Error (MSE) UC6_I:  0.0951585669966702
+Mean Absolute Error (MAE) UC6_I: 0.11689487425727159
+avg heg pcc UC6_I: 0.4325
+avg hvg pcc UC6_I: 0.2059
+image query shape:  (9502, 256)
+spot_key shape:  (882352, 256)
+E:\conda\envs\thitogene\lib\site-packages\scipy\stats\_stats_py.py:4781: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+  warnings.warn(stats.ConstantInputWarning(msg))
+Mean Squared Error (MSE) UC6_NI:  0.08553615032087199
+Mean Absolute Error (MAE) UC6_NI: 0.10586014662320709
+avg heg pcc UC6_NI: 0.4259
+avg hvg pcc UC6_NI: 0.2253
+image query shape:  (14819, 256)
+spot_key shape:  (841944, 256)
+E:\conda\envs\thitogene\lib\site-packages\scipy\stats\_stats_py.py:4781: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+  warnings.warn(stats.ConstantInputWarning(msg))
+Mean Squared Error (MSE) UC7_I:  0.09282724950876739
+Mean Absolute Error (MAE) UC7_I: 0.11536892385742774
+avg heg pcc UC7_I: 0.4163
+avg hvg pcc UC7_I: 0.2071
+image query shape:  (18750, 256)
+spot_key shape:  (793789, 256)
+E:\conda\envs\thitogene\lib\site-packages\scipy\stats\_stats_py.py:4781: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+  warnings.warn(stats.ConstantInputWarning(msg))
+Mean Squared Error (MSE) UC9_I:  0.09025209535999469
+Mean Absolute Error (MAE) UC9_I: 0.11537678227601712
+avg heg pcc UC9_I: 0.4507
+avg hvg pcc UC9_I: 0.2257
+avg heg pcc: 0.4174
+avg hvg pcc: 0.2096
+Mean Squared Error (MSE): 0.0898
+Mean Absolute Error (MAE): 0.1139

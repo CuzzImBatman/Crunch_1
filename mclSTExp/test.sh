@@ -1,1 +1,2 @@
-python evel_2.py --test_model 80-219
+python test_centroid.py --test_model 24-219\
+                         --centroid True

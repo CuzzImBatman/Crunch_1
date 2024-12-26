@@ -8,4 +8,4 @@
 # done
 
 # 
-python get_embedding.py --test_model 80-219
+python get_embedding.py --test_model 24-219 --centroid True

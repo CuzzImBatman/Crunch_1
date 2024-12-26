@@ -3,14 +3,13 @@ import os
 import argparse
 import csv
 import numpy as np
-from dataset import NeuronData,build_batch_graph
 # from torch.utils.data import Dataset, DataLoader
 from torch_geometric.loader import DataLoader
 import torch
-from model import GATModel
+from model import GATModel_3
 import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
-from dataset import NeuronData
+from dataset import NeuronData_3,build_batch_graph
 from lr_scheduler import LR_Scheduler
 from torch.utils.data import Sampler
 from collections import defaultdict
@@ -20,41 +19,10 @@ from sklearn.metrics import accuracy_score, roc_auc_score, f1_score, cohen_kappa
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 # torch.multiprocessing.set_start_method('spawn')
 import anndata
+from scipy.stats import spearmanr
 
 from utils import get_R
 
-
-def train_one_epoch(model, train_loader, optimizer,scheduler, device, epoch,demo=False):
-    model.train()
-    total_loss = torch.zeros(1).to(device)
-    train_loader = tqdm(train_loader, file=sys.stdout, ncols=100, colour='red')
-    # optimizer.zero_grad()
-    for i, data in enumerate(train_loader):
-        optimizer.zero_grad()
-        # data = data.to(device)
-        graph_data= build_batch_graph(data,device)
-        # graph_data.cpu()
-        # data.cpu()
-        pred,label = model(graph_data)
-        label = np.array(label, dtype=np.float32)
-        label = torch.from_numpy(label)
-        label= label.to(device)
-        # print(label.shape,pred.shape)
-
-        # print(type(label))
-
-        loss = F.mse_loss(pred, label)
-
-        loss.backward()
-        optimizer.step()
-        scheduler.step()
-
-        total_loss = (total_loss * i + loss.detach()) / (i + 1)
-        train_loader.desc = 'Train\t[epoch {}] lr: {}\tloss {}'.format(epoch, optimizer.param_groups[0]["lr"], round(total_loss.item(), 3))
-        if i==3 and demo==True:
-            break
-    torch.cuda.empty_cache()
-    return pred
 
 
 @torch.no_grad()
@@ -74,9 +42,14 @@ def val_one_epoch(model, val_loader, device, centroid,demo=False, encoder_mode =
         # graph_data.cpu()
         if encoder_mode ==True:
             centroid=0
-        output,label,_,_ = model(graph_data)
-        output= output[centroid:]
-        label= label[centroid:]
+        output,label,_,_ ,_= model(graph_data)
+        head= min(centroid,len(data))
+        min_bound=0.26
+        max_bound=4.6052
+        output[output < min_bound] = 0
+        output[output >max_bound] = max_bound
+        output= output[head:]
+        label= label[head:]
         
         label = torch.from_numpy(label).to(device)
         labels = torch.cat([labels.cpu(), label.cpu()], dim=0)
@@ -107,13 +80,14 @@ def parse():
     parser.add_argument('--encoder_mode', default=False, type=bool, help='test encoder')
     parser.add_argument('--encoder_name', default='vitsmall', help='fixed encoder name, for saving folder name')
     parser.add_argument('--demo', default=False, type=bool, help='toy run')
-    
+    parser.add_argument('--input_dim', default=1024, type=int, help='input dimension')
+
 
     return parser.parse_args()
 
 
 
-def load_checkpoint(epoch, model, optimizer,scheduler,args):
+def load_checkpoint(epoch, model,args):
     try:
         filename=f"checkpoint_epoch_{epoch}.pth.tar"
         dir=f"{args.save_dir}"
@@ -125,11 +99,10 @@ def load_checkpoint(epoch, model, optimizer,scheduler,args):
     if args.encoder_mode== True:
         dir=f"{args.save_dir}"
     model.load_state_dict(checkpoint['model_state_dict'])
-    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     # epoch = checkpoint['epoch']
     # args = checkpoint['args']
-    # scheduler.load_state_dict(checkpoint['scheduler'])
     print(f"Checkpoint loaded from epoch {epoch}")
+    return model
 
 def main(args):
     print(args)
@@ -138,45 +111,21 @@ def main(args):
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
     cudnn.benchmark = True
-    print(args.demo,args.encoder_mode, f'demo: {args.demo== True}  encoder: {args.encoder_mode== True}')
+    print(f'demo: {args.demo== True}  encoder: {args.encoder_mode== True}')
     
-    utils_dir = args.utils
     NAMES = ['DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I']
-    # NAMES=NAMES[:1]
     
-    train_NAMES= NAMES[:3]+ NAMES[5:]
     if args.demo== True:
         NAMES=NAMES[:1]
-        train_NAMES=NAMES
     dir=args.embed_dir
-    # dir='D:/DATA/Gene_expression/Crunch/preprocessed'
-    # traindata= NeuronData(emb_folder=dir,train=True, split =True,name_list= train_NAMES,encoder_mode=args.encoder_mode)
-    # train_dataLoader =DataLoader(traindata, batch_size=args.batch_size, shuffle=False,pin_memory=False)    
-    # print(len(train_dataLoader))
-    # traindata[2127]
-    model=GATModel()
+
+    model=GATModel_3(input_dim=args.input_dim)
     model= model.to(device)
-    #------------------------
-    
 
-    # print(f'Using fold {args.fold}')
-    # print(f'valid: {len(val_set)}')
-
+    start_epoch= args.start_epoch
+    model = load_checkpoint(args.start_epoch, model,args=args)
     
-    
-    
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-5)
-    scheduler = LR_Scheduler(optimizer=optimizer
-                             ,num_epochs=args.epochs
-                             ,base_lr=0.001
-                             ,iter_per_epoch = 1
-                             ,warmup_epochs= 10
-                            ,warmup_lr= 0.0003
-                            ,final_lr= 0.00001
-                            ,constant_predictor_lr=False
-)
-    
-    val_set= [NeuronData(emb_folder=dir,train=False, split =True,name_list= [name],encoder_mode=args.encoder_mode) 
+    val_set= [NeuronData_3(emb_folder=dir,train=False, split =True,name_list= [name],encoder_mode=args.encoder_mode) 
               for name in NAMES]
     val_loader =[DataLoader(set, batch_size=args.batch_size, shuffle=False,pin_memory=True)for set in val_set]    
     output_dir = args.save_dir
@@ -189,17 +138,9 @@ def main(args):
 
     print(f"Start training for {args.epochs} epochs")
 
-    with open(f'{output_dir}/results.csv', 'w') as csvfile:
-        csv_writer = csv.writer(csvfile)
-        csv_writer.writerow(['epoch', 'val acc', 'val auc', 'val f1', 'val kappa', 'val specificity'])
 
-    with open(f'{output_dir}/val_matrix.txt', 'w') as f:
-            print('test start', file=f)
-
-    min_val_mse = 200.0
-    min_val_mae = 200.0
-    start_epoch= args.start_epoch
-    start_epoch, args, model,scheduler, optimizer = load_checkpoint(155, model, optimizer,scheduler,args)
+  
+    
     
     print(start_epoch)
     print(f'start epoch: {start_epoch}, batch size: {args.batch_size}')
@@ -208,6 +149,7 @@ def main(args):
     heg_pcc_list = []
     mse_list = []
     mae_list = []
+    hvg_spear_list = []
     for index in range(len(val_loader)): 
         val_preds, val_labels = val_one_epoch(model=model,demo=args.demo
                                                 , val_loader=val_loader[index]
@@ -234,21 +176,24 @@ def main(args):
         hvg_pcc, hvg_p = get_R(adata_pred, adata_true)
         hvg_pcc = hvg_pcc[~np.isnan(hvg_pcc)]
         
+        hvg_spear, _ = get_R(data1=adata_pred,data2= adata_true,func=spearmanr)
+        hvg_spear= hvg_spear[~np.isnan(hvg_spear)]
+        
+        hvg_spear_list.append(np.mean(hvg_spear))
         heg_pcc_list.append(np.mean(heg_pcc))
         hvg_pcc_list.append(np.mean(hvg_pcc))
         mse_list.append(mse)
         mae_list.append(mae)
     
         print(f'name: {NAMES[index]}')
-        print('Val\t[epoch {}] mse:{}\tmae:{}\theg:{} \thevg:{}'.format(1, mse, mae,np.mean(heg_pcc),np.mean(hvg_pcc)))
+        print('Val\t[epoch {}] mse:{}\tmae:{}\theg:{} \thvg:{} \tspear:{}'.format(1, mse, mae,np.mean(heg_pcc),np.mean(hvg_pcc),np.mean(hvg_spear)))
     # print(f"avg heg pcc : {np.mean(heg_pcc):.4f}")
     # print(f"avg hvg pcc: {np.mean(hvg_pcc):.4f}")
     print(f"Mean Squared Error (MSE): {np.mean(mse_list):.4f}")
     print(f"Mean Absolute Error (MAE): {np.mean(mae_list):.4f}")
     print(f"avg heg pcc: {np.mean(heg_pcc_list):.4f}")
     print(f"avg hvg pcc: {np.mean(hvg_pcc_list):.4f}")
-    min_val_mse = min(min_val_mse, np.mean(mse_list))
-    min_val_mae = min(min_val_mae, np.mean(mae_list))
+    print(f"avg spear: {np.mean(hvg_spear_list):.4f}")
 
     
         
