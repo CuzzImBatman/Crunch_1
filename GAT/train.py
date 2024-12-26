@@ -158,6 +158,7 @@ def parse():
     parser.add_argument('--demo', type=bool, default=False)
     parser.add_argument('--local', type=bool, default=False)
     parser.add_argument('--encoder_mode', type=bool, default=False)
+    parser.add_argument('--cluster_path', type=str, default='/content/cluster')
 
     return parser.parse_args()
 
@@ -220,11 +221,11 @@ def main(args):
     if args.demo== True:
         train_list=NAMES[:1]
         NAMES=NAMES[:1]
-    train_dataset = CLUSTER_BRAIN(emb_folder=dir,train=True,split=True,name_list=train_list)
+    train_dataset = CLUSTER_BRAIN(emb_folder=dir,cluster_path=args.cluster_path,train=True,split=True,name_list=train_list)
     # print(f'Using fold {args.fold}')
     print(f'train: {len(train_dataset)}')
     # print(f'valid: {len(val_set)}')
-    val_dataset = [CLUSTER_BRAIN(emb_folder=dir,train=False,split=True,name_list=[name] ) for name in NAMES]
+    val_dataset = [CLUSTER_BRAIN(emb_folder=dir,cluster_path=args.cluster_path,train=False,split=True,name_list=[name] ) for name in NAMES]
     sampler = PrecomputedTypeBatchSampler(train_dataset, args.batch_size)
 
     train_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=sampler,num_workers=3,pin_memory=True)
