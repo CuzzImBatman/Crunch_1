@@ -144,7 +144,7 @@ def parse():
     parser.add_argument('--batch_size', type=int, default=4096, help='patch_size')
 
     parser.add_argument('--embed_dim', type=int, default=1024, help="The dimension of instance-level representations")
-    parser.add_argument('--patch_size', type=str, default='80', help='patch_size')
+    parser.add_argument('--patch_size', type=str, default='24', help='patch_size')
     parser.add_argument('--utils', type=str, default=None, help='utils path')
     parser.add_argument('--device', type=str, default='cuda:0', help='device to use for training / testing')
     parser.add_argument('--n_workers', type=int, default=0)
