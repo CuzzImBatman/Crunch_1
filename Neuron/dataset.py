@@ -388,9 +388,14 @@ def build_batch_graph(batch,device,centroid_layer):
             # print(torch.tensor(batch.edge_index[i]).shape)        
             all_edge_index.append(torch.tensor(batch.edge_index[i]) + node_offset + len(batch.edge_index))
             add_edge_index=[]
+            ''''''
+            # for j in range(batch.cell_num[i]):
+            #     add_edge_index.append((i,j+ node_offset + len(batch.edge_index)))
             for j in range(batch.cell_num[i]):
-                add_edge_index.append((i,j+ node_offset + len(batch.edge_index)))
+                for t in range(len(batch.edge_index)):
+                    add_edge_index.append((t,j+ node_offset + len(batch.edge_index)))
             # print(add_edge_index)
+            ''''''
             all_edge_index.append(torch.tensor(add_edge_index))
             node_offset += batch.cell_num[i]
         edge_index = torch.cat(all_edge_index, dim=0).to(torch.long)
@@ -799,9 +804,11 @@ def build_super_batch_graph(batch,device):
         add_edge_index=[]
         for j in range(batch.all_num[i]): #centroid_num
             add_edge_index.append((i,j+ node_offset + len(batch.edge_index)))
-            centroid_index.append(j+ node_offset + len(batch.edge_index))
+            if j < batch.centroid_num[i]:
+                centroid_index.append(j+ node_offset + len(batch.edge_index))
         all_edge_index.append(torch.tensor(add_edge_index))
         node_offset += batch.all_num[i]
+        
     edge_index = torch.cat(all_edge_index, dim=0).to(torch.long)
     # emb_centroids=batch.emb_centroid
     batch.emb_super_centroid= batch.emb_super_centroid.view(-1,batch.x.shape[1])

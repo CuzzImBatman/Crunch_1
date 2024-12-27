@@ -47,14 +47,15 @@ def val_one_epoch(model, val_loader, device, centroid,demo=False, encoder_mode =
         mask = np.ones(output.shape[0], dtype=bool)
         mask[centroid_index] = False
         mask[:head]=False
+        # print(centroid_index,head)
         output= output[mask]
         label= label[mask]
         
         label = torch.from_numpy(label).to(device)
         labels = torch.cat([labels.cpu(), label.cpu()], dim=0)
         preds = torch.cat([preds.cpu(), output.detach().cpu()], dim=0)
-        if i==3 and demo==True:
-            break
+        # if i==3 and demo==True:
+        #     break
     print(labels.shape,preds.shape)
     return preds.cpu(), labels.cpu()
 

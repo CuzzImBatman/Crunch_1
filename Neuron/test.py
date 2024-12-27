@@ -45,7 +45,7 @@ def val_one_epoch(model, val_loader, device, centroid,demo=False, encoder_mode =
         output,label,_,_ ,_= model(graph_data)
         head= min(centroid,len(data))
         min_bound=0.26
-        min_bound=0.05
+        min_bound=0
         max_bound=4.6052
         output[output < min_bound] = 0
         # output[(output>0) & (output<min_bound) ]=0.0001
