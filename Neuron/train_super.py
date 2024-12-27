@@ -148,6 +148,7 @@ def parse():
     parser.add_argument('--nolog1p', default=False, type=bool, help='no log1p in dataset')
     parser.add_argument('--partial', default=-1, type=int, help='leave-one-out training')
     parser.add_argument('--input_dim', default=1024, type=int, help='input dimmension')
+    parser.add_argument('--cluster_path', default='../cluster', type=str, help='input dimmension')
 
     return parser.parse_args()
 
@@ -214,6 +215,7 @@ def main(args):
     traindata= SuperNeuronData(emb_folder=dir
                             ,train=True
                             , split =True
+                            ,cluster_path=args.cluster_path
                           ,name_list= train_NAMES
                           ,encoder_mode=args.encoder_mode
                           ,nolog1p= args.nolog1p
@@ -247,6 +249,7 @@ def main(args):
     val_set= [SuperNeuronData(emb_folder=dir
                            ,train=False
                            , split =True
+                            ,cluster_path=args.cluster_path
                            ,name_list= [name]
                            ,nolog1p=args.nolog1p
                            ,encoder_mode=args.encoder_mode) 
