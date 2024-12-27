@@ -214,6 +214,7 @@ def main(args):
     traindata= NeuronData_3(emb_folder=dir
                             ,train=True
                             , split =True
+                            ,cluster_path=args.cluster_path
                           ,name_list= train_NAMES
                           ,encoder_mode=args.encoder_mode
                           ,nolog1p= args.nolog1p
@@ -237,7 +238,6 @@ def main(args):
     scheduler = LR_Scheduler(optimizer=optimizer
                              ,num_epochs=args.epochs
                              ,base_lr=0.00018
-                            ,cluster_path=args.cluster_path
                              ,iter_per_epoch = len(train_dataLoader)
                              ,warmup_epochs= 10
                             ,warmup_lr= 0.00015
