@@ -5754,3 +5754,8 @@ Neuron/model_result/80_24_256_1024_2/checkpoint_epoch_47.pth.tar
 Neuron/model_result/80_24_256_1024_2/results.csv
 Neuron/model_result_super_all/80_24_1024_1024/Unconfirmed 969351.crdownload
 Neuron/model_result_super_all/80_24_1024_1024/checkpoint_epoch_79.pth.tar
+GAT/model_result/checkpoint_epoch_43.pth.tar
+GAT/model_result/checkpoint_epoch_59.pth.tar
+GAT/model_result/checkpoint_epoch_99.pth.tar
+Neuron/model_result_super_all
+Neuron/model_result
