@@ -1,7 +1,7 @@
 import argparse
 import torch
 import os
-from dataset import DATA_BRAIN,Dummy,CLUSTER_BRAIN
+from dataset import SUPER_CLUSTER_BRAIN,Dummy,CLUSTER_BRAIN
 from model import mclSTExp_Attention, mclSTExp_Attention_Pretrain
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
@@ -30,6 +30,7 @@ def generate_args():
     parser.add_argument('--patch_size', type=int, default=100, help='patch_size')
     parser.add_argument('--test_model', type=str, default='64-99', help='patch_size(n)-epoch(e)')
     parser.add_argument('--embed_dir', type=str, default='/content/preprocessed')
+    parser.add_argument('--cluster_dir', type=str, default='/content/cluster')
     parser.add_argument('--demo', type=bool, default=False)
     parser.add_argument('--device', type=str, default='cuda:0')
     parser.add_argument('--local', type=bool, default=False)
@@ -100,7 +101,8 @@ def load_data(args):
         dir=args.embed_dir
         if args.demo == True:
             NAMES=NAMES[:2]
-        train_dataset = CLUSTER_BRAIN(emb_folder=dir,train=True,split=True,name_list=NAMES,centroid=args.centroid)
+        # train_dataset = CLUSTER_BRAIN(emb_folder=dir,train=True,split=True,name_list=NAMES,centroid=args.centroid)
+        train_dataset = SUPER_CLUSTER_BRAIN(emb_folder=dir,cluster_fold=args.cluster_dir,train=True,split=True,name_list=NAMES)
         batch_sampler = CustomBatchSampler(train_dataset, shuffle=True)
 
         # dummy_dataset= Dummy(train=True)

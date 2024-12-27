@@ -5759,3 +5759,11 @@ GAT/model_result/checkpoint_epoch_59.pth.tar
 GAT/model_result/checkpoint_epoch_99.pth.tar
 Neuron/model_result_super_all
 Neuron/model_result
+Neuron/model_result_no_centroid/checkpoint_epoch_95.pth.tar
+Neuron/model_result_no_centroid/results.csv
+Neuron/model_result_testing/checkpoint_epoch_7.pth.tar
+Neuron/model_result_testing/checkpoint_epoch_15.pth.tar
+Neuron/model_result_testing/checkpoint_epoch_23.pth.tar
+Neuron/model_result_testing/checkpoint_epoch_27.pth.tar
+Neuron/model_result_testing/checkpoint_epoch_39.pth.tar
+Neuron/model_result_testing/results.csv

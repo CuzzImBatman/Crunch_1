@@ -678,8 +678,7 @@ class CLUSTER_BRAIN(torch.utils.data.Dataset):
                 emb_centroids= torch.from_numpy(np.load(f'{emb_dir}/80/{group}/{name}.npy'))
                 centroids = cell_list_cluster.groupby('cluster')[['x', 'y']].mean().sort_index().reset_index().to_numpy()
             # print(emb_cells.shape[0]/16)
-            
-            # print(emb_cells.shape, len( valid_cell_list_cluster),len(filtered_cells_index),len(cell_list_cluster))
+                       # print(emb_cells.shape, len( valid_cell_list_cluster),len(filtered_cells_index),len(cell_list_cluster))
             # len of emb_cells == len of cell_list_cluster
             if group =='train':
                 emb_cells= emb_cells[cell_list_cluster[group] != -1] # len of emb_cells == len of valid_cell_list_cluster
@@ -763,6 +762,218 @@ class CLUSTER_BRAIN(torch.utils.data.Dataset):
             cell_ids=None
             cluster_id_cells=None
             cell_exps=None
+        self.cluster_id_cells_dict=cluster_id_cells_dict
+        self.cell_ids_dict=cell_ids_dict
+        self.exps_dict= exps_dict
+        self.pos_dict= pos_dict
+        self.emb_cells_dict             =emb_cells_dict
+        self.lengths                    =lenngths
+        self.cumlen =np.cumsum(self.lengths)
+        self.id2name = dict(enumerate(NAMES))
+        self.global_to_local = self._create_global_index_map()
+    def _create_global_index_map(self):
+        """Create a mapping from global index to (dataset index, local index)."""
+        global_to_local = []
+        for i, name in enumerate(self.id2name):
+            local_indices = list(zip([i] * self.lengths[i], range(self.lengths[i])))
+            global_to_local.extend(local_indices)
+        return global_to_local
+    def __getitem__(self, index):
+        # i = 0
+        # 
+        # # print(index)
+        # while index >= self.cumlen[i]:
+        #     i += 1
+        # idx = index
+        # if i > 0:
+        #     idx = index - self.cumlen[i - 1]
+        i, idx = self.global_to_local[index]
+        emb_cell= self.emb_cells_dict[self.id2name[i]][idx]
+        exps= self.exps_dict[self.id2name[i]][idx]
+        cell_id= self.cell_ids_dict[self.id2name[i]][idx]
+        cluster_id= self.cluster_id_cells_dict[self.id2name[i]][idx]
+        item = {}
+       
+        item["feature"] = emb_cell
+        x,y= self.pos_dict[self.id2name[i]][idx]
+        # x=int(x)
+        # y=int(y)
+        item["position"] = torch.Tensor((x,y))
+        item["expression"] = exps
+        item['id']=i-1
+        item['cell_id']=cell_id
+        item['cluster_id']=cluster_id
+        return item
+
+    def __len__(self):
+        return self.cumlen[-1]
+  
+        
+    def get_sdata(self, name):
+        path= f'{self.dir}/{name}.zarr'
+        # path = os.path.join()
+        # print(path)
+        sdata = sd.read_zarr(path)
+        return sdata
+    
+class SUPER_CLUSTER_BRAIN(torch.utils.data.Dataset):
+
+    def __init__(self,cluster_fold='E:/DATA/crunch/tmp/cluster', emb_folder=f'E:/DATA/crunch/tmp/preprocessed', augmentation=True,encoder_mode=False, random_seed=1234, train=True, split= False,
+                 name_list= ['DC1','DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I']):
+        self.augmentation = augmentation
+        emb_dir=emb_folder
+        # emb_dir=  
+        self.encoder_mode= encoder_mode
+        NAMES = name_list
+        group='evel'
+        dataset_type= None
+        if train== False and split == True:
+                dataset_type= 0 
+        elif train== True and split == True:
+                dataset_type= 1
+        elif train== True and split == False:
+                dataset_type= -1
+        if split ==True:
+            group='train'
+            try:
+                NAMES.remove('DC1')
+            except:
+                print('DC1 is not in list')
+        # NAMES= NAMES[:1]
+        print(f'Type: {dataset_type}')
+        valid_cell_list_cluster_dict={}
+        emb_cells_dict={}
+        lenngths=[]
+        pos_dict={}
+        exps_dict={}
+        cell_ids_dict={}
+        cluster_id_cells_dict={}
+        for name in NAMES:
+            preload_dir=f'../pre_load'
+            # with open(f'{preload_dir}/{name}_cells.pkl','rb') as f:
+            #     cell_list_org= pickle.load(f)
+            if split== True:
+                cluster_dir=f'{cluster_fold}/train/cluster_data_split'
+            elif train == False:
+                cluster_dir=f'{cluster_fold}/evel/cluster_data'
+                
+            with open(f'{cluster_dir}/{name}_cells.pkl','rb') as f:
+                cell_list_cluster = pickle.load(f)
+           
+            
+            
+
+            # Filter out invalid clusters (those with 'train' = -1)
+            
+            valid_cell_list_cluster= cell_list_cluster[cell_list_cluster[group] != -1]
+            # filtered_cells_index = [i for i in range(len(cell_list_org)) if cell_list_org[i]['label'] == group]
+            # print(len(valid_cell_list_cluster))
+            emb_cells= torch.from_numpy(np.load(f'{emb_dir}/24/{group}/{name}.npy'))
+            emb_centroids= torch.from_numpy(np.load(f'{emb_dir}/80/{group}/{name}.npy'))
+            centroids = cell_list_cluster.groupby('cluster')[['x', 'y']].mean().sort_index().reset_index().to_numpy()
+            # print(emb_cells.shape[0]/16)
+            with open(f'{cluster_dir}/{name}_clusters.pkl','rb') as f:
+                cluster_list = pickle.load(f)
+            valid_cluster_list=cluster_list
+            emb_super_centroids= torch.from_numpy(np.load(f'{emb_dir}/256/{group}/{name}.npy'))
+            super_centroids = cluster_list.groupby('cluster')[['x', 'y']].mean().sort_index().reset_index().to_numpy()
+            # print(emb_cells.shape, len( valid_cell_list_cluster),len(filtered_cells_index),len(cell_list_cluster))
+            # len of emb_cells == len of cell_list_cluster
+            if group =='train':
+                emb_cells= emb_cells[cell_list_cluster[group] != -1] # len of emb_cells == len of valid_cell_list_cluster
+            # print(len(valid_cell_list_cluster),len(emb_cells))
+            # print(emb_cells.shape)
+            # print(len(emb_cells), len( valid_cell_list_cluster))
+            if dataset_type != None:
+                if dataset_type ==1 :
+                    valid_super_clusters            =cluster_list[cluster_list[group] == 1]['super_cluster'].unique()
+                    valid_clusters           = cell_list_cluster[cell_list_cluster[group] == 1]['cluster'].unique()
+                    emb_cells               =emb_cells[valid_cell_list_cluster[group].to_numpy() == 1]
+                    valid_cell_list_cluster =valid_cell_list_cluster[valid_cell_list_cluster[group] == 1]
+                elif dataset_type ==0:
+                    valid_super_clusters            =cluster_list[cluster_list[group] == 0]['super_cluster'].unique()
+                    valid_clusters           = cell_list_cluster[cell_list_cluster[group] == 0]['cluster'].unique()
+                    emb_cells               =emb_cells[valid_cell_list_cluster[group].to_numpy() == 0]
+                    valid_cell_list_cluster =valid_cell_list_cluster[valid_cell_list_cluster[group] == 0]
+            # print(len(valid_cell_list_cluster),len(emb_cells),name)
+            cell_list_cluster=None
+            cell_exps= np.stack(valid_cell_list_cluster['counts'].to_numpy())
+        # # print(cell_counts.shape)
+            cell_exps = cell_exps / cell_exps.sum(axis=1, keepdims=True) * 100
+            cell_exps = np.log1p(cell_exps)
+            pos= valid_cell_list_cluster[['x', 'y']].to_numpy()
+            super_centroids= super_centroids[valid_super_clusters]
+            emb_super_centroids= emb_super_centroids[valid_super_clusters]  
+            empty_centroid_exps= np.empty((emb_centroids.shape[0],460))
+            all_super_centroids_exps=[]
+            for i in range(len(valid_super_clusters)):
+                cluster_list_in_super_cluster = valid_cluster_list[valid_cluster_list['super_cluster'] == valid_super_clusters[i]]
+                filter_cluster          =cluster_list_in_super_cluster['cluster'].to_numpy()
+                all_centroids_exps=[]
+                for cluster in filter_cluster:
+                    cells_list_in_cluster = valid_cell_list_cluster[valid_cell_list_cluster['cluster'] == cluster]
+                    x_center, y_center = centroids[i,1],centroids[i,2]
+                    if group == 'train':
+                        half_side = int(80 / 2)
+                        x_min, x_max = x_center - half_side, x_center + half_side
+                        y_min, y_max = y_center - half_side, y_center + half_side
+                        
+                        index_cells_list_in_square =(
+                        (cells_list_in_cluster['x'] >= x_min) & (cells_list_in_cluster['x'] <= x_max) &
+                        (cells_list_in_cluster['y'] >= y_min) & (cells_list_in_cluster['y'] <= y_max)
+                        )
+                        ############
+                        cells_list_in_square=cells_list_in_cluster[index_cells_list_in_square]
+                        if len(cells_list_in_square)==0:
+                            cells_list_in_square=cells_list_in_cluster
+                        centroid_exps=  np.array([np.sum(cells_list_in_square['counts'].to_numpy()/len(cells_list_in_square), axis=0)])
+                        all_centroids_exps.append(centroid_exps)
+                        centroid_exps = centroid_exps / centroid_exps.sum(axis=1, keepdims=True) 
+                        centroid_exps = np.log1p(centroid_exps* 100)
+                        # print(cluster)
+                        empty_centroid_exps[int(cluster),:]=centroid_exps
+                        all_centroids_exps.append(centroid_exps)
+                        centroid_exps=None
+                        cells_list_in_square=None
+                        cells_list_in_cluster=None
+                        del cells_list_in_square, cells_list_in_cluster, centroid_exps
+                    else:
+                        centroid_exps=np.empty(460)
+                all_centroids_exps=np.vstack(all_centroids_exps)
+                all_centroids_exps = all_centroids_exps / all_centroids_exps.sum(axis=1, keepdims=True) 
+                all_centroids_exps = np.log1p(all_centroids_exps* 100)
+                all_super_centroids_exps.append(all_centroids_exps)
+                all_centroids_exps=None
+            all_super_centroids_exps=np.vstack(all_super_centroids_exps)
+            centroids= centroids[valid_clusters]   
+            emb_centroids= emb_centroids[valid_clusters]
+            all_centroids_exps=empty_centroid_exps[valid_clusters]
+            cell_exps=np.vstack([all_super_centroids_exps,all_centroids_exps,cell_exps])
+            super_centroids= super_centroids[:,1:]
+            centroids= centroids[:,1:]
+            pos_dict[name]  = np.vstack([super_centroids,centroids,pos])
+            emb_cells_dict[name]            =np.vstack([emb_super_centroids,emb_centroids,emb_cells])
+            super_centroid_index= -(valid_super_clusters+1)-6500
+            centroid_index= -(valid_clusters+1)
+            cell_ids=valid_cell_list_cluster['cell_id'].to_numpy()
+            cluster_id_cells=valid_cell_list_cluster['cluster'].to_numpy()
+            cluster_id_cells_dict[name]=np.hstack([super_centroid_index,centroid_index,cluster_id_cells])
+            cell_ids_dict[name]=np.hstack([super_centroid_index,centroid_index,cell_ids])
+       
+            exps_dict[name]   =cell_exps
+            # len of valid_cell_list_cluster == len of  emb_cells
+            lenngths.append(len(emb_cells_dict[name]   ))
+            print(len(cell_ids_dict[name]), len(emb_cells_dict[name]), len(cell_exps))
+            valid_cell_list_cluster=None
+            all_centroids_exps=None
+            emb_centroids=None
+            emb_cells=None
+            cell_ids=None
+            cluster_id_cells=None
+            cell_exps=None
+            all_super_centroids_exps=None
+            emb_super_centroids=None
+            super_centroids=None
         self.cluster_id_cells_dict=cluster_id_cells_dict
         self.cell_ids_dict=cell_ids_dict
         self.exps_dict= exps_dict

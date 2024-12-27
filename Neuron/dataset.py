@@ -398,8 +398,8 @@ def build_batch_graph(batch,device,centroid_layer):
             for j in range(batch.cell_num[i]):
                 add_edge_index.append((i,j+ node_offset + len(batch.edge_index)))
                 ####testing
-                for neighbor in neighbors[i]:
-                    add_edge_index.append((neighbor, j+ node_offset + len(batch.edge_index)))
+                # for neighbor in neighbors[i]:
+                #     add_edge_index.append((neighbor, j+ node_offset + len(batch.edge_index)))
             ''''''
             all_edge_index.append(torch.tensor(add_edge_index))
             node_offset += batch.cell_num[i]
