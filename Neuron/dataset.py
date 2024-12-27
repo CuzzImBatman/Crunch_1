@@ -379,6 +379,12 @@ def build_batch_graph(batch,device,centroid_layer):
     centroid_exps = np.vstack(batch.centroid_exps)  # Get centroid expression data
     # print(centroid_exps.shape)
     # print(batch.x.shape, batch.emb_centroid)
+    cluster_centroids = torch.tensor(np.array(batch.cluster_centroid))  # Get centroid positions
+    # print(cluster_centroids)
+    dist_matrix = torch.cdist(cluster_centroids, cluster_centroids)
+    k=min(6,len(cluster_centroids))
+    neighbors = torch.topk(dist_matrix, k=k, largest=False).indices  # Top 6 neighbors
+
     if batch.x.shape[0]!=0:
         cell_exps = np.vstack(batch.cell_exps)  # Get cell expression data
         # print(centroid_exps.shape, cell_exps.shape)
@@ -389,12 +395,11 @@ def build_batch_graph(batch,device,centroid_layer):
             all_edge_index.append(torch.tensor(batch.edge_index[i]) + node_offset + len(batch.edge_index))
             add_edge_index=[]
             ''''''
-            # for j in range(batch.cell_num[i]):
-            #     add_edge_index.append((i,j+ node_offset + len(batch.edge_index)))
-            # for j in range(batch.cell_num[i]):
-            #     for t in range(len(batch.edge_index)):
-            #         add_edge_index.append((t,j+ node_offset + len(batch.edge_index)))
-            # print(add_edge_index)
+            for j in range(batch.cell_num[i]):
+                add_edge_index.append((i,j+ node_offset + len(batch.edge_index)))
+                ####testing
+                for neighbor in neighbors[i]:
+                    add_edge_index.append((neighbor, j+ node_offset + len(batch.edge_index)))
             ''''''
             all_edge_index.append(torch.tensor(add_edge_index))
             node_offset += batch.cell_num[i]
@@ -411,39 +416,7 @@ def build_batch_graph(batch,device,centroid_layer):
         # print(edge_index.size(0),batch.edge_index.size(0))
         edge_index=torch.empty(0, dtype=torch.long)
         all_x = batch.emb_centroid
-    # print(all_x.shape,centroid_exps.shape)
-    # print(edge_index.shape)
-    # all_x = batch.x  # All node features (batch size x feature_dim)
-    
-
-    # Assuming centroid embeddings are stored as a separate tensor
-    # emb_centroids = batch.emb_centroid  # Stack centroid embeddings from the batch
-    cluster_centroids = torch.tensor(np.array(batch.cluster_centroid))  # Get centroid positions
-    # print(cluster_centroids)
    
-    dist_matrix = torch.cdist(cluster_centroids, cluster_centroids)
-    
-    ###################
-    # # Add edges for 6 nearest clusters
-    # edge_index_centroid=torch.empty(0, dtype=torch.long, device=device)
-    # for i in range(len(cluster_centroids)):
-    #     try:
-    #         neighbors = torch.topk(dist_matrix[i], k=min(6,len(cluster_centroids)-1), largest=False).indices
-    #     except:
-    #         print(len(cluster_centroids))
-    #         break
-    #     for neighbor in neighbors:
-    #         # print(torch.tensor([[i], [neighbor]]).size())
-    #         edge_to_add = torch.tensor([[i, neighbor]], dtype=torch.long).to(device)
-    #         edge_index = torch.cat([edge_index, edge_to_add], dim=0)
-    #         if centroid_layer==True:
-    #             edge_index_centroid = torch.cat([edge_index_centroid, edge_to_add], dim=0)
-    # # print(f'shape:    {exps.shape}')
-    
-    ###############
-    k=min(6,len(cluster_centroids))
-    neighbors = torch.topk(dist_matrix, k=k, largest=False).indices  # Top 6 neighbors
-
     # Add inter-cluster edges
     edge_index_centroid = []
     for i in range(len(cluster_centroids)):
@@ -798,6 +771,13 @@ def build_super_batch_graph(batch,device):
     exps= np.vstack((super_centroid_exps, exps))
     # print(len(batch.edge_index))
     centroid_index=[]
+    # Assuming centroid embeddings are stored as a separate tensor
+    # emb_centroids = batch.emb_centroid  # Stack centroid embeddings from the batch
+    super_centroid = torch.tensor(np.array(batch.super_centroid))  # Get centroid positions
+    dist_matrix = torch.cdist(super_centroid, super_centroid)
+    k=min(6,len(super_centroid))
+    neighbors = torch.topk(dist_matrix, k=k, largest=False).indices  # Top 6 neighbors
+    
     for i in range(len(batch.edge_index)):
         # print(torch.tensor(batch.edge_index[i]).shape)        
         all_edge_index.append(torch.tensor(batch.edge_index[i]) + node_offset + len(batch.edge_index))
@@ -816,17 +796,7 @@ def build_super_batch_graph(batch,device):
    
     
 
-    # Assuming centroid embeddings are stored as a separate tensor
-    # emb_centroids = batch.emb_centroid  # Stack centroid embeddings from the batch
-    super_centroid = torch.tensor(np.array(batch.super_centroid))  # Get centroid positions
     
-   
-    dist_matrix = torch.cdist(super_centroid, super_centroid)
-    
-  
-    k=min(6,len(super_centroid))
-    neighbors = torch.topk(dist_matrix, k=k, largest=False).indices  # Top 6 neighbors
-
     # Add inter-cluster edges
     edge_index_centroid = []
     for i in range(len(super_centroid)):
