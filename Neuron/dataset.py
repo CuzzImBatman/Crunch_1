@@ -799,7 +799,7 @@ def build_super_batch_graph(batch,device):
         # print(torch.tensor(batch.edge_index[i]).shape)        
         all_edge_index.append(torch.tensor(batch.edge_index[i]) + node_offset + len(batch.edge_index))
         add_edge_index=[]
-        for j in range(batch.centroid_num[i]):
+        for j in range(batch.all_num[i]): #centroid_num
             add_edge_index.append((i,j+ node_offset + len(batch.edge_index)))
             centroid_index.append(j+ node_offset + len(batch.edge_index))
         all_edge_index.append(torch.tensor(add_edge_index))

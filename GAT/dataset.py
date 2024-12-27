@@ -5,7 +5,7 @@ CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 import numpy as np
 import torchvision.transforms as transforms
 import glob
-import spatialdata as sd
+# import spatialdata as sd
 
 # import cv2
 from PIL import Image
