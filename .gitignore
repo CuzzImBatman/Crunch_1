@@ -5737,3 +5737,6 @@ GAT/model_result_register/80/checkpoint_epoch_39.pth.tar
 GAT/model_result_register/80/checkpoint_epoch_55.pth.tar
 GAT/model_result_register/80/checkpoint_epoch_67.pth.tar
 GAT/model_result_register/80/checkpoint_epoch_75.pth.tar
+Neuron/model_result_super_all/80_24_256_1024/checkpoint_epoch_3.pth.tar
+Neuron/model_result_super_all/80_24_256_1024/results.csv
+Neuron/model_result_super_all/80_24_256_1024/val_matrix.txt

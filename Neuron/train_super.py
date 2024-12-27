@@ -49,7 +49,7 @@ def train_one_epoch(model,args, train_loader, optimizer,scheduler, device, epoch
                 # print(data)
             # graph_data.cpu()
             # data.cpu()
-            pred,label,pred_c,label_c = model(graph_data)
+            pred,label,pred_c,label_c,_ = model(graph_data)
             
             label = np.array(label, dtype=np.float32)
             label = torch.from_numpy(label)
@@ -108,7 +108,7 @@ def val_one_epoch(model, val_loader, device,args, centroid, data_type='val'):
         # graph_data.cpu()
         if args.encoder_mode ==True:
             centroid=0
-        output,label,_,_= model(graph_data)
+        output,label,_,_,_= model(graph_data)
         head= min(centroid,len(data))
         output[output < 0] = 0
         output= output[head:]
@@ -147,6 +147,8 @@ def parse():
     parser.add_argument('--centroid_layer', default=False, type=bool, help='add layer')
     parser.add_argument('--nolog1p', default=False, type=bool, help='no log1p in dataset')
     parser.add_argument('--partial', default=-1, type=int, help='leave-one-out training')
+    parser.add_argument('--input_dim', default=1024, type=int, help='input dimmension')
+
     return parser.parse_args()
 
 def save_checkpoint(epoch, model, optimizer,scheduler, args, filename="checkpoint.pth.tar"):
@@ -220,7 +222,7 @@ def main(args):
     # print(len(train_dataLoader))
     device = torch.device(args.device if torch.cuda.is_available() else 'cpu')
     # traindata[2127]
-    model=GATModel_3(centroid_layer=args.centroid_layer)
+    model=GATModel_3(centroid_layer=args.centroid_layer,input_dim=args.input_dim)
     model= model.to(device)
     #------------------------
     

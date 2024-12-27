@@ -453,8 +453,6 @@ def build_batch_graph(batch,device,centroid_layer):
     ##############################
     # print(all_x.shape,all_x.dtype)
     return Data(x=all_x.to(device), edge_index=edge_index.to(device), edge_index_centroid=edge_index_centroid),exps,centroid_exps
-from memory_profiler import profile
-@profile
 class SuperNeuronData(Dataset):
     def __init__(self,cluster_path= 'E:/DATA/crunch/tmp/cluster', emb_folder=f'D:/DATA/Gene_expression/Crunch/preprocessed', augmentation=True,encoder_mode=False, random_seed=1234, train=True, split= False,
                  name_list= ['DC1','DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I'],evel=False,nolog1p= False):
@@ -806,7 +804,7 @@ def build_super_batch_graph(batch,device):
         node_offset += batch.all_num[i]
     edge_index = torch.cat(all_edge_index, dim=0).to(torch.long)
     # emb_centroids=batch.emb_centroid
-    batch.emb_super_centroid= batch.emb_super_centroid.view(-1,1024)
+    batch.emb_super_centroid= batch.emb_super_centroid.view(-1,batch.x.shape[1])
     all_x = torch.cat([batch.emb_super_centroid, batch.x], dim=0)
    
     

@@ -1,7 +1,4 @@
 import os
-import spatialdata as sd
-import pickle
-import torchvision.transforms as transforms
 import numpy as np
 import torch
 from tqdm import tqdm
@@ -14,7 +11,7 @@ group_type=['train','evel']
 group_type=['train']
 
 absolute_path='E:/DATA/crunch/tmp'
-r=int(80/2)
+r=int(256/2)
 model_path='C:\\DATA\Crunch\mclSTExp\\model_result_centroid\\24\\checkpoint_epoch_219.pth.tar'
 
 
