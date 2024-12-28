@@ -234,7 +234,7 @@ def main(args):
 
     
     
-    
+    # optimizer = torch.optim.SGD(model.parameters(), lr=0.0002, weight_decay=1e-5)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0002, weight_decay=1e-5)
     scheduler = LR_Scheduler(optimizer=optimizer
                              ,num_epochs=args.epochs
