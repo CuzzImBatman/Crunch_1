@@ -53,6 +53,7 @@ def val_one_epoch(model, val_loader, device, centroid,demo=False, encoder_mode =
         output[output >max_bound] = max_bound
         output= output[head:]
         label= label[head:]
+        # print(label[0])
         
         label = torch.from_numpy(label).to(device)
         labels = torch.cat([labels.cpu(), label.cpu()], dim=0)

@@ -472,6 +472,7 @@ class SuperNeuronData(Dataset):
         filter_cluster_list_dict={}
         filter_cell_list_dict={}
         super_cluster_exps_list_dict={}
+        all_cell_id_list_dict={}
         for name in NAMES:
             print(f'Loading: {name}')
             cluster_edge_index_list=[]
@@ -480,6 +481,7 @@ class SuperNeuronData(Dataset):
             filter_cluster_list=[] # get centroid embedding
             filter_cell_list=[] #get cell embedding
             cell_id_list=[]
+            all_cell_id_list=[]
             
             if split== True:
                 cluster_dir=f'{cluster_path}/{group}/cluster_data_split'
@@ -558,11 +560,14 @@ class SuperNeuronData(Dataset):
                 all_cell_index= np.array([])
                 all_centroid_exps=[]
                 all_cell_exps=[]
+                cell_id_list=[]
                 # print(i)
                 # cell_mask_all = np.zeros(len(valid_cell_list_cluster), dtype=bool)
                 for cluster in filter_cluster:
                     cluster_cells= valid_cell_list_cluster[valid_cell_list_cluster['cluster']==cluster]
                     # print(i,i)
+                    cell_ids= cluster_cells['cell_id'].to_numpy()
+                    cell_id_list.append(cell_ids)
                     cell_list_in_square= self._get_points_in_square(dataframe= cluster_cells,r=int(80/2))
                     if len(cell_list_in_square)==0:
                         cell_list_in_square=cluster_cells
@@ -588,6 +593,7 @@ class SuperNeuronData(Dataset):
                     offset = offset+ len(cluster_cells)
                     all_edge_index= all_edge_index+ edge_index
                     
+                    cell_ids= None
                     cluster_cells=None
                     cell_list_in_square=None
                     centroid_exps=None
@@ -597,6 +603,8 @@ class SuperNeuronData(Dataset):
                     del cluster_cells,cell_list_in_square,cell_exps,centroid_exps,cell_index,edge_index
                     # gc.collect()
                 # print(i,i,i)
+                cell_id_list=np.hstack(cell_id_list)
+                all_cell_id_list.append(cell_id_list)
                 all_centroid_exps= np.vstack(all_centroid_exps)
                 all_cell_exps= np.vstack(all_cell_exps)
                 super_centroid_exps=np.array([np.sum(all_centroid_exps/len(all_centroid_exps), axis=0)])
@@ -612,6 +620,7 @@ class SuperNeuronData(Dataset):
                 cluster_exps_list.append(all_exps)   
                 filter_cell_list.append(all_cell_index)          
                 super_cluster_exps_list.append(super_centroid_exps)
+                cell_id_list=None
                 super_centroid_exps=None
                 all_cell_exps=None
                 all_centroid_exps=None
@@ -623,11 +632,13 @@ class SuperNeuronData(Dataset):
                 # gc.collect()
                 
             gc.collect()
+            all_cell_id_list_dict[name]= all_cell_id_list 
             cluster_edge_index_list_dict[name]=cluster_edge_index_list
             cluster_exps_list_dict[name]= cluster_exps_list
             filter_cluster_list_dict[name]= filter_cluster_list
             filter_cell_list_dict[name]= filter_cell_list
             super_cluster_exps_list_dict[name]=super_cluster_exps_list
+            all_cell_id_list=None
             cluster_edge_index_list=None
             cluster_exps_list=None
             filter_cluster_list=None
@@ -635,7 +646,8 @@ class SuperNeuronData(Dataset):
             super_cluster_exps_list=None
             valid_cell_list_cluster=None
             del cluster_edge_index_list,cluster_exps_list,filter_cluster_list,filter_cell_list,super_cluster_exps_list,valid_cell_list_cluster
-                
+        
+        self.all_cell_id_list_dict              =all_cell_id_list_dict
         self.cluster_edge_index_list_dict       =cluster_edge_index_list_dict
         self.cluster_exps_list_dict             =cluster_exps_list_dict
         self.filter_cluster_list_dict           =filter_cluster_list_dict
@@ -786,6 +798,9 @@ def build_super_batch_graph(batch,device):
             add_edge_index.append((i,j+ node_offset + len(batch.edge_index)))
             if j < batch.centroid_num[i]:
                 centroid_index.append(j+ node_offset + len(batch.edge_index))
+            ####testing
+            for neighbor in neighbors[i]:
+                add_edge_index.append((neighbor, j+ node_offset + len(batch.edge_index)))
         all_edge_index.append(torch.tensor(add_edge_index))
         node_offset += batch.all_num[i]
         

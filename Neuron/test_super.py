@@ -50,6 +50,7 @@ def val_one_epoch(model, val_loader, device, centroid,demo=False, encoder_mode =
         # print(centroid_index,head)
         output= output[mask]
         label= label[mask]
+        # print(label[0])
         
         label = torch.from_numpy(label).to(device)
         labels = torch.cat([labels.cpu(), label.cpu()], dim=0)
