@@ -108,11 +108,15 @@ def val_one_epoch(model, val_loader, device,args, centroid, data_type='val'):
         # graph_data.cpu()
         if args.encoder_mode ==True:
             centroid=0
-        output,label,_,_,_= model(graph_data)
+        output,label,_,_,centroid_index = model(graph_data)
         head= min(centroid,len(data))
         output[output < 0] = 0
-        output= output[head:]
-        label= label[head:]
+        mask = np.ones(output.shape[0], dtype=bool)
+        mask[centroid_index] = False
+        mask[:head]=False
+        # print(centroid_index,head)
+        output= output[mask]
+        label= label[mask]
         
         label = torch.from_numpy(label).to(device)
         if args.nolog1p == True:
