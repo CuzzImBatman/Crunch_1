@@ -799,8 +799,8 @@ def build_super_batch_graph(batch,device):
             if j < batch.centroid_num[i]:
                 centroid_index.append(j+ node_offset + len(batch.edge_index))
             ####testing
-            # for neighbor in neighbors[i]:
-            #     add_edge_index.append((neighbor, j+ node_offset + len(batch.edge_index)))
+            for neighbor in neighbors[i]:
+                add_edge_index.append((neighbor, j+ node_offset + len(batch.edge_index)))
         all_edge_index.append(torch.tensor(add_edge_index))
         node_offset += batch.all_num[i]
     edge_index = torch.cat(all_edge_index, dim=0).to(torch.long)
