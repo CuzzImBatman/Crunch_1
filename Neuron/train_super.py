@@ -153,7 +153,7 @@ def parse():
     parser.add_argument('--partial', default=-1, type=int, help='leave-one-out training')
     parser.add_argument('--input_dim', default=1024, type=int, help='input dimmension')
     parser.add_argument('--cluster_path', default='../cluster', type=str, help='input dimmension')
-
+    parser.add_argument('--threshold', default=False, type=bool, help='sparse threshold')
     return parser.parse_args()
 
 def save_checkpoint(epoch, model, optimizer,scheduler, args, filename="checkpoint.pth.tar"):
