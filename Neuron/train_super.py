@@ -6,7 +6,7 @@ import numpy as np
 # from torch.utils.data import Dataset, DataLoader
 from torch_geometric.loader import DataLoader
 import torch
-from model import GATModel,GATModel_Softmax,GATModel_3,TransConv
+from model import GATModel_thres,GATModel_Softmax,GATModel_3,TransConv
 import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
 from dataset import SuperNeuronData,build_super_batch_graph
@@ -216,6 +216,10 @@ def main(args):
         pin= False
     else:
         pin= True
+    if args.threshold == True:
+        train_model= GATModel_thres
+    else:
+        train_model= GATModel_3
     traindata= SuperNeuronData(emb_folder=dir
                             ,train=True
                             , split =True
@@ -228,7 +232,7 @@ def main(args):
     # print(len(train_dataLoader))
     device = torch.device(args.device if torch.cuda.is_available() else 'cpu')
     # traindata[2127]
-    model=GATModel_3(centroid_layer=args.centroid_layer,input_dim=args.input_dim)
+    model=train_model(centroid_layer=args.centroid_layer,input_dim=args.input_dim)
     model= model.to(device)
     #------------------------
     
