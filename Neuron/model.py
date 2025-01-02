@@ -4,12 +4,12 @@ from torch_geometric.nn import GATv2Conv,TransformerConv
 import torch
 import torch.nn.functional as F
 class ThresholdedReLU(nn.Module):
-    def __init__(self, theta=1.0):
+    def __init__(self, theta=1.0,min_bound= 0.001):
         super(ThresholdedReLU, self).__init__()
         self.theta = theta
 
     def forward(self, x):
-        return torch.where(x > self.theta, x, torch.zeros_like(x))
+        return torch.where(x > self.theta, x, torch.full_like(x, 0.001))
 class GATModel(nn.Module):
     def __init__(self, input_dim=16*5*5, hidden_dim=512, output_dim=1024, num_heads=4,n_classes=460,centroid_layer=False):
         super(GATModel, self).__init__()
