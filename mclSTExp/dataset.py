@@ -5,7 +5,7 @@ CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 import numpy as np
 import torchvision.transforms as transforms
 import glob
-import spatialdata as sd
+# import spatialdata as sd
 
 # import cv2
 from PIL import Image
@@ -940,11 +940,18 @@ class SUPER_CLUSTER_BRAIN(torch.utils.data.Dataset):
                     else:
                         centroid_exps=np.empty(460)
                 all_centroids_exps=np.vstack(all_centroids_exps)
+                super_centroid_exps= np.array([np.sum(all_centroids_exps/len(all_centroids_exps), axis=0)])
+                super_centroid_exps = super_centroid_exps / super_centroid_exps.sum(axis=1, keepdims=True) 
+                super_centroid_exps = np.log1p(super_centroid_exps* 100)
+                all_super_centroids_exps.append(super_centroid_exps)
                 all_centroids_exps = all_centroids_exps / all_centroids_exps.sum(axis=1, keepdims=True) 
                 all_centroids_exps = np.log1p(all_centroids_exps* 100)
-                all_super_centroids_exps.append(all_centroids_exps)
+                
                 all_centroids_exps=None
+                super_centroid_exps=None
             all_super_centroids_exps=np.vstack(all_super_centroids_exps)
+           
+            
             centroids= centroids[valid_clusters]   
             emb_centroids= emb_centroids[valid_clusters]
             all_centroids_exps=empty_centroid_exps[valid_clusters]
@@ -963,7 +970,7 @@ class SUPER_CLUSTER_BRAIN(torch.utils.data.Dataset):
             exps_dict[name]   =cell_exps
             # len of valid_cell_list_cluster == len of  emb_cells
             lenngths.append(len(emb_cells_dict[name]   ))
-            print(len(cell_ids_dict[name]), len(emb_cells_dict[name]), len(cell_exps))
+            print(len(cell_ids_dict[name]), len(emb_cells_dict[name]), len(cell_exps),len(all_super_centroids_exps))
             valid_cell_list_cluster=None
             all_centroids_exps=None
             emb_centroids=None

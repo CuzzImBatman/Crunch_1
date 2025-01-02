@@ -6,7 +6,7 @@ import numpy as np
 # from torch.utils.data import Dataset, DataLoader
 from torch_geometric.loader import DataLoader
 import torch
-from model import GATModel,GATModel_Softmax,GATModel_3,TransConv
+from model import GATModel_thres,GATModel_Softmax,GATModel_3,TransConv
 import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
 from dataset import NeuronData_3,build_batch_graph
@@ -149,6 +149,8 @@ def parse():
     parser.add_argument('--partial', default=-1, type=int, help='leave-one-out training')
     parser.add_argument('--input_dim', default=1024, type=int, help='input dimmension')
     parser.add_argument('--cluster_path', default='../cluster', type=str, help='input dimmension')
+    parser.add_argument('--threshold', default=False, type=bool, help='sparse threshold')
+
     return parser.parse_args()
 
 def save_checkpoint(epoch, model, optimizer,scheduler, args, filename="checkpoint.pth.tar"):
@@ -211,6 +213,10 @@ def main(args):
         pin= False
     else:
         pin= True
+    if args.threshold == True:
+        train_model= GATModel_thres
+    else:
+        train_model= GATModel_3
     traindata= NeuronData_3(emb_folder=dir
                             ,train=True
                             , split =True
@@ -223,7 +229,7 @@ def main(args):
     # print(len(train_dataLoader))
     device = torch.device(args.device if torch.cuda.is_available() else 'cpu')
     # traindata[2127]
-    model=GATModel_3(centroid_layer=args.centroid_layer,input_dim=args.input_dim)
+    model=train_model(centroid_layer=args.centroid_layer,input_dim=args.input_dim)
     model= model.to(device)
     #------------------------
     

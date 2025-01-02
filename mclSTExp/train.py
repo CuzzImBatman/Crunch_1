@@ -108,7 +108,7 @@ def load_data(args):
         # dummy_dataset= Dummy(train=True)
         # batch_sampler = CustomBatchSampler(dummy_dataset, shuffle=True)
         # print('hellooooooooooooooooooooooooooo')
-        train_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=batch_sampler,num_workers=3,pin_memory=True)
+        train_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=batch_sampler,num_workers=2,pin_memory=True)
         if args.local== True:
             print('local run')
             train_dataLoader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=batch_sampler,pin_memory=False)

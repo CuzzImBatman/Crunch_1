@@ -5,6 +5,7 @@ CUDA_LAUNCH_BLOCKING=1 python train.py --batch_size 3200 --path_save './model_re
  --cluster_dir 'E:/DATA/crunch/tmp/cluster' \
  --device 'cuda' \
  --local True \
+ --centroid True \
   --demo True \
 #  --centroid True\
 

@@ -3,7 +3,13 @@ import torch.nn as nn
 from torch_geometric.nn import GATv2Conv,TransformerConv
 import torch
 import torch.nn.functional as F
+class ThresholdedReLU(nn.Module):
+    def __init__(self, theta=1.0):
+        super(ThresholdedReLU, self).__init__()
+        self.theta = theta
 
+    def forward(self, x):
+        return torch.where(x > self.theta, x, torch.zeros_like(x))
 class GATModel(nn.Module):
     def __init__(self, input_dim=16*5*5, hidden_dim=512, output_dim=1024, num_heads=4,n_classes=460,centroid_layer=False):
         super(GATModel, self).__init__()
@@ -161,6 +167,51 @@ class GATModel_3(nn.Module):
         else:
             h = self.gat_conv(x, edge_index.T)
         h = self.fc(h).squeeze(0)
+        
+        # print(h.shape,exps.shape)
+        if return_attention:
+            return h,exps,h_c,exps_c,centroid_index,edge_indices, attention_scores
+        return h,exps,h_c,exps_c,centroid_index
+    
+class GATModel_thres(nn.Module):
+    def __init__(self, input_dim=1024, hidden_dim=1024, output_dim=1024, num_heads=3,n_classes=460,centroid_layer=False):
+        super(GATModel_thres, self).__init__()
+
+        # MLP for flattening emb_cells_in_cluster
+       
+        # GATConv for graph processing
+        self.centroid_layer=centroid_layer
+        self.gat_conv_centroid = GATv2Conv(input_dim, hidden_dim, heads=num_heads, concat=False)
+        self.gat_conv = GATv2Conv(input_dim, hidden_dim, heads=num_heads, concat=False)
+        self.activate = F.elu
+        self.thresholded_relu = ThresholdedReLU(theta=0.24)
+        self.fc = nn.Linear(hidden_dim, n_classes)
+    def forward(self, data, return_attention=False):
+        # Node features and edge indices from DataLoader
+        emb_data, exps, exps_c= data
+        centroid_num = exps_c.shape[0]
+        edge_index = emb_data.edge_index  # x: [total_nodes, feature_dim], edge_index: [2, num_edges]
+      
+        h_c=None
+       
+        if self.centroid_layer ==True:
+            emb_centroids= self.gat_conv_centroid(emb_data.x,emb_data.edge_index_centroid.T)
+            h_c= self.fc(emb_centroids).squeeze(0)
+            x= emb_centroids
+        else:
+            x=emb_data.x
+        try:
+            centroid_index=emb_data.centroid_index
+        except:
+            centroid_index=[]
+      
+        if return_attention:
+            h, (edge_indices, attention_scores) = self.gat_conv(x, edge_index.T, return_attention_weights=True)
+        else:
+            h = self.gat_conv(x, edge_index.T)
+        
+        h = self.fc(h)
+        h=self.thresholded_relu(h).squeeze(0)
         
         # print(h.shape,exps.shape)
         if return_attention:

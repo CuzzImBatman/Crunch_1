@@ -11,14 +11,14 @@ group_type=['train','evel']
 group_type=['train']
 
 absolute_path='E:/DATA/crunch/tmp'
-r=int(256/2)
-model_path='C:\\DATA\Crunch\mclSTExp\\model_result_centroid\\24\\checkpoint_epoch_219.pth.tar'
+r=int(24/2)
+model_path='C:\\DATA\Crunch\mclSTExp\\model_result_super\\24\\checkpoint_epoch_219.pth.tar'
 
 
 # dir=f'F:/DATA/crunch_large/zip_server'
 for group in group_type:
     dir = f'{absolute_path}/preprocessed/{r*2}/{group}'
-    save_dir=f'{absolute_path}/projection/{r*2}/{group}'
+    save_dir=f'{absolute_path}/projection_super/{r*2}/{group}'
     os.makedirs(save_dir,exist_ok=True)
     numpy_folder = dir
     NAMES = ['DC1','DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I']

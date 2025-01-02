@@ -608,11 +608,13 @@ class SuperNeuronData(Dataset):
                 all_centroid_exps= np.vstack(all_centroid_exps)
                 all_cell_exps= np.vstack(all_cell_exps)
                 super_centroid_exps=np.array([np.sum(all_centroid_exps/len(all_centroid_exps), axis=0)])
-                super_centroid_exps = super_centroid_exps / super_centroid_exps.sum(axis=1, keepdims=True) 
-                super_centroid_exps = np.log1p(super_centroid_exps* 100)
+                super_centroid_exps = super_centroid_exps / super_centroid_exps.sum(axis=1, keepdims=True)
+                if nolog1p == False: 
+                    super_centroid_exps = np.log1p(super_centroid_exps* 100)
                 all_exps= np.vstack([all_centroid_exps,all_cell_exps])
                 all_exps = all_exps / all_exps.sum(axis=1, keepdims=True) 
-                all_exps = np.log1p(all_exps* 100)
+                if nolog1p == False:
+                    all_exps = np.log1p(all_exps* 100)
                 
                 edge_index=self._get_edge_index_(dataframe=cluster_list_in_super_cluster,k=6,add=0)
                 all_edge_index= edge_index + all_edge_index
