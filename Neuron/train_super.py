@@ -9,7 +9,7 @@ import torch
 from model import GATModel_thres,Encoder_GAT,GATModel_3,TransConv
 import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
-from dataset import SuperNeuronData,build_super_batch_graph
+from dataset import SuperNeuronData,SuperNeuronData_2,build_super_batch_graph
 from lr_scheduler import LR_Scheduler
 from torch.utils.data import Sampler
 from collections import defaultdict
@@ -223,7 +223,7 @@ def main(args):
     if args.train_encoder==True:
         train_model= Encoder_GAT
         args.input_dim= 1024
-    traindata= SuperNeuronData(emb_folder=dir
+    traindata= SuperNeuronData_2(emb_folder=dir
                             ,train=True
                             , split =True
                             ,cluster_path=args.cluster_path
@@ -257,7 +257,7 @@ def main(args):
                             ,constant_predictor_lr=False
 )
     
-    val_set= [SuperNeuronData(emb_folder=dir
+    val_set= [SuperNeuronData_2(emb_folder=dir
                            ,train=False
                            , split =True
                             ,cluster_path=args.cluster_path

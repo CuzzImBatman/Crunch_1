@@ -584,7 +584,7 @@ class SuperNeuronData(Dataset):
                     cell_list_in_square= self._get_points_in_square(dataframe= cluster_cells,r=int(80/2))
                     if len(cell_list_in_square)==0:
                         cell_list_in_square=cluster_cells
-                    cell_list_in_square=cluster_cells  #TESTINGGGG
+                    # cell_list_in_square=cluster_cells  #TESTINGGGG
     
                     centroid_exps=  np.array([np.sum(cell_list_in_square['counts'].to_numpy()/len(cell_list_in_square), axis=0)])
                     # centroid_exps= np.array([[0]*460])
@@ -851,3 +851,368 @@ def build_super_batch_graph(batch,device):
     #     division = len(lst) / float(n)
     #     return [lst[int(round(division * i)): int(round(division * (i + 1)))] for i in range(n)]
 
+class SuperNeuronData_2(Dataset):
+    def __init__(self,cluster_path= 'E:/DATA/crunch/tmp/cluster', emb_folder=f'D:/DATA/Gene_expression/Crunch/preprocessed', augmentation=True,encoder_mode=False, random_seed=1234, train=True, split= False,
+                 name_list= ['DC1','DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I'],evel=False,nolog1p= False):
+        self.augmentation = augmentation
+        
+        # emb_dir=  
+        self.encoder_mode= encoder_mode
+        group='evel'
+        NAMES = name_list
+        dataset_type= None
+        if train== False and split == True:
+                dataset_type= 0 
+        elif train== True and split == True:
+                dataset_type= 1
+        elif train== True and split == False:
+                dataset_type= -1
+        if split ==True:
+            group='train'
+            try:
+                NAMES.remove('DC1')
+            except:
+                print('DC1 is not in list')
+           
+        # NAMES= NAMES[:1]
+        if evel==True:
+            group= 'evel'
+            dataset_type=-1
+        print(f'Type: {dataset_type}, group: {group}')
+        super_centroids_dict={}
+        valid_super_clusters_dict={}
+        emb_cells_dict={}
+        emb_centroids_dict={}
+        emb_super_centroids_dict={}
+        lenngths=[]
+        sorted_indices_dict={}
+      
+        cluster_edge_index_list_dict={}
+        cluster_exps_list_dict={}
+        filter_cluster_list_dict={}
+        filter_cell_list_dict={}
+        super_cluster_exps_list_dict={}
+        all_cell_id_list_dict={}
+        for name in NAMES:
+            print(f'Loading: {name}')
+            cluster_edge_index_list=[]
+            cluster_exps_list=[]
+            super_cluster_exps_list=[]
+            filter_cluster_list=[] # get centroid embedding
+            filter_cell_list=[] #get cell embedding
+            cell_id_list=[]
+            all_cell_id_list=[]
+            
+            if split== True:
+                cluster_dir=f'{cluster_path}/{group}/cluster_data_split'
+            elif train == False:
+                cluster_dir=f'{cluster_path}/{group}/cluster_data'
+                
+            with open(f'{cluster_dir}/{name}_clusters.pkl','rb') as f:
+                cluster_list = pickle.load(f)
+            with open(f'{cluster_dir}/{name}_cells.pkl','rb') as f:
+                cell_list_cluster = pickle.load(f)
+            
+            emb_cells= torch.from_numpy(np.load(f'{emb_folder}/24/{group}/{name}.npy'))
+            emb_centroids= torch.from_numpy(np.load(f'{emb_folder}/80/{group}/{name}.npy')) # len of valid_clusters(['group'] != -1) = len of emb_centroids
+            emb_super_centroids= torch.from_numpy(np.load(f'{emb_folder}/256/{group}/{name}.npy')) # len of valid_clusters(['group'] != -1) = len of emb_centroids
+            if len(emb_super_centroids.shape)>3:
+                resize_transform = transforms.Resize((32, 32))
+
+# Permute the tensor to change its shape from (N, H, W, C) to (N, C, H, W)
+                emb_super_centroids = emb_super_centroids.permute(0, 3, 1, 2)  # Change from (N, H, W, C) to (N, C, H, W)
+                emb_centroids = emb_centroids.permute(0, 3, 1, 2)  # Change from (N, H, W, C) to (N, C, H, W)
+                emb_cells = emb_cells.permute(0, 3, 1, 2)  # Change from (N, H, W, C) to (N, C, H, W)
+                # Apply the resize transform
+                emb_super_centroids = resize_transform(emb_super_centroids)
+                emb_centroids = resize_transform(emb_centroids)
+
+                # Permute back to (N, H, W, C) if needed
+                
+            super_centroids = cluster_list.groupby('cluster')[['x', 'y']].mean().sort_index().reset_index().to_numpy()
+           
+            valid_cluster_list= cluster_list
+            valid_super_clusters = valid_cluster_list['super_cluster'].unique()    
+            # filtered_cells_index = [i for i in range(len(cell_list_org)) if cell_list_org[i]['label'] == group]
+
+            # print(emb_cells.shape)
+            # print(len(emb_cells), len( valid_cell_list_cluster))
+            if dataset_type != None:
+                if dataset_type ==1 :
+                    temp_supter_cluster            =cluster_list[cluster_list[group] == 1]['super_cluster'].unique()
+                    super_cluster_index           =[list(valid_super_clusters).index(cluster_id) for cluster_id in temp_supter_cluster ]
+                 
+                    filter_cluster          =valid_cluster_list[valid_cluster_list[group] == 1]['cluster'].unique()
+                    valid_cell_list_cluster = cell_list_cluster[cell_list_cluster['cluster'].isin(set(filter_cluster))]
+                    emb_cells               =emb_cells[valid_cell_list_cluster.index.to_numpy()]
+                    valid_super_clusters    =temp_supter_cluster
+                elif dataset_type ==0:
+                    temp_supter_cluster            =cluster_list[cluster_list[group] == 0]['super_cluster'].unique()
+                    super_cluster_index           =[list(valid_super_clusters).index(cluster_id) for cluster_id in temp_supter_cluster ]
+                   
+                    filter_cluster          =valid_cluster_list[valid_cluster_list[group] == 0]['cluster'].unique()
+                    valid_cell_list_cluster = cell_list_cluster[cell_list_cluster['cluster'].isin(set(filter_cluster))]
+                    emb_cells               =emb_cells[valid_cell_list_cluster.index.to_numpy()]
+                    valid_super_clusters    =temp_supter_cluster
+            cell_list_cluster=None
+            super_centroids= super_centroids[valid_super_clusters]  
+            emb_super_centroids= emb_super_centroids[valid_super_clusters]  
+            valid_cell_list_cluster.reset_index(drop=True, inplace=True)
+
+            gc.collect()
+            ''''''
+            # Use the sorted indices to get sorted centroids
+            sorted_indices_dict[name]=self._sorted_indices(super_centroids)
+            
+            ''''''
+               
+            lenngths.append(len(super_centroids))
+            
+            # len of centroids == len of valid_cluster == len of emb_centroids
+            # len of valid_cell_list_cluster == len of  emb_cells
+            super_centroids_dict[name]            =super_centroids[:,1:]
+            valid_super_clusters_dict[name]       =valid_super_clusters
+            emb_cells_dict[name]            =emb_cells
+            # emb_centroids_dict[name]        =emb_centroids
+            # emb_super_centroids_dict[name]  =emb_super_centroids
+            emb_cells=None
+            emb_centroids=np.empty(emb_centroids.shape)
+            emb_super_centroids=np.empty(emb_super_centroids.shape)
+            #####################################################
+            
+            for i in range(len(valid_super_clusters)):
+
+
+                cluster_list_in_super_cluster = valid_cluster_list[valid_cluster_list['super_cluster'] == valid_super_clusters[i]]
+                filter_cluster          =cluster_list_in_super_cluster['cluster'].to_numpy()
+                
+                filter_cluster_list.append(filter_cluster)
+                offset=0
+                all_edge_index=[]
+                all_cell_index= np.array([])
+                all_centroid_exps=[]
+                all_cell_exps=[]
+                cell_id_list=[]
+                emb_centroids_list=[]
+                # print(i)
+                # cell_mask_all = np.zeros(len(valid_cell_list_cluster), dtype=bool)
+                for cluster in filter_cluster:
+                    cluster_cells= valid_cell_list_cluster[valid_cell_list_cluster['cluster']==cluster]
+                    
+                    emb_cluster_cells=emb_cells_dict[name][valid_cell_list_cluster.index.to_numpy()]
+                    emb_cluster_cells = torch.mean(emb_cluster_cells, dim=0, keepdim=True)
+                    emb_centroids_list.append(emb_cluster_cells)
+                    emb_centroids[int(cluster),:]= emb_cluster_cells
+                    emb_cluster_cells=None
+                    
+                    cell_ids= cluster_cells['cell_id'].to_numpy()
+                    cell_id_list.append(cell_ids)
+                    cell_list_in_square= self._get_points_in_square(dataframe= cluster_cells,r=int(80/2))
+                    if len(cell_list_in_square)==0:
+                        cell_list_in_square=cluster_cells
+                    # cell_list_in_square=cluster_cells  #TESTINGGGG
+    
+                    centroid_exps=  np.array([np.sum(cell_list_in_square['counts'].to_numpy()/len(cell_list_in_square), axis=0)])
+                    # centroid_exps= np.array([[0]*460])
+                    all_centroid_exps.append(centroid_exps)
+                    
+                    cell_exps= np.stack(cluster_cells['counts'].to_numpy())
+                    # cell_exps=np.array([[0]*460])
+                    all_cell_exps.append(cell_exps)
+                    
+                    cell_index= cluster_cells.index
+                    all_cell_index= np.concatenate([ all_cell_index, cell_index])
+                    # all_cell_index=np.array([])
+                    # print(all_cell_index.shape)
+                    add= len(filter_cluster)+offset
+                    edge_index=self._get_edge_index_(cluster_cells,k=6,add=add)
+                    # edge_index=[]
+                    for cell_i in range(len(cluster_cells)):
+                        edge_index.append((list(filter_cluster).index(cluster), cell_i+ add))
+          
+                    offset = offset+ len(cluster_cells)
+                    all_edge_index= all_edge_index+ edge_index
+                    
+                    cell_ids= None
+                    cluster_cells=None
+                    cell_list_in_square=None
+                    centroid_exps=None
+                    cell_exps=None
+                    cell_index=None
+                    edge_index=None
+                    del cluster_cells,cell_list_in_square,cell_exps,centroid_exps,cell_index,edge_index
+                    # gc.collect()
+                # print(i,i,i)
+                emb_super_centroids[i,:]= torch.mean(torch.stack(emb_centroids_list), dim=0)
+                cell_id_list=np.hstack(cell_id_list)
+                all_cell_id_list.append(cell_id_list)
+                all_centroid_exps= np.vstack(all_centroid_exps)
+                all_cell_exps= np.vstack(all_cell_exps)
+                super_centroid_exps=np.array([np.sum(all_centroid_exps/len(all_centroid_exps), axis=0)])
+                super_centroid_exps = super_centroid_exps / super_centroid_exps.sum(axis=1, keepdims=True)
+                if nolog1p == False: 
+                    super_centroid_exps = np.log1p(super_centroid_exps* 100)
+                all_exps= np.vstack([all_centroid_exps,all_cell_exps])
+                all_exps = all_exps / all_exps.sum(axis=1, keepdims=True) 
+                if nolog1p == False:
+                    all_exps = np.log1p(all_exps* 100)
+                
+                edge_index=self._get_edge_index_(dataframe=cluster_list_in_super_cluster,k=6,add=0)
+                all_edge_index= edge_index + all_edge_index
+                cluster_edge_index_list.append(all_edge_index)
+                cluster_exps_list.append(all_exps)   
+                filter_cell_list.append(all_cell_index)          
+                super_cluster_exps_list.append(super_centroid_exps)
+                cell_id_list=None
+                super_centroid_exps=None
+                all_cell_exps=None
+                all_centroid_exps=None
+                all_exps=None
+                all_cell_index=None
+                all_edge_index=None
+                edge_index=None
+                del all_exps, all_centroid_exps,super_centroid_exps,all_cell_index,all_edge_index,edge_index
+                # gc.collect()
+                
+            gc.collect()
+            all_cell_id_list_dict[name]= all_cell_id_list 
+            cluster_edge_index_list_dict[name]=cluster_edge_index_list
+            cluster_exps_list_dict[name]= cluster_exps_list
+            filter_cluster_list_dict[name]= filter_cluster_list
+            filter_cell_list_dict[name]= filter_cell_list
+            super_cluster_exps_list_dict[name]=super_cluster_exps_list
+            emb_centroids_dict[name]        =emb_centroids
+            emb_super_centroids_dict[name]  =emb_super_centroids
+            all_cell_id_list=None
+            cluster_edge_index_list=None
+            cluster_exps_list=None
+            filter_cluster_list=None
+            filter_cell_list=None
+            super_cluster_exps_list=None
+            valid_cell_list_cluster=None
+            emb_centroids=None
+            emb_super_centroids=None
+            del cluster_edge_index_list,cluster_exps_list,filter_cluster_list,filter_cell_list,super_cluster_exps_list,valid_cell_list_cluster
+        
+        self.all_cell_id_list_dict              =all_cell_id_list_dict
+        self.cluster_edge_index_list_dict       =cluster_edge_index_list_dict
+        self.cluster_exps_list_dict             =cluster_exps_list_dict
+        self.filter_cluster_list_dict           =filter_cluster_list_dict
+        self.filter_cell_list_dict              =filter_cell_list_dict
+        self.super_cluster_exps_list_dict       =super_cluster_exps_list_dict
+        self.super_centroids_dict             =super_centroids_dict
+        self.valid_super_clusters_dict        =valid_super_clusters_dict
+        self.emb_cells_dict             =emb_cells_dict
+        self.emb_centroids_dict         =emb_centroids_dict
+        self.emb_super_centroids_dict         =emb_super_centroids_dict
+        self.lengths                    =lenngths
+        self.sorted_indices_dict        =sorted_indices_dict
+        self.cumlen =np.cumsum(self.lengths)
+        self.id2name = dict(enumerate(NAMES))
+        
+        cluster_edge_index_list_dict=None
+        cluster_exps_list_dict=None
+        filter_cluster_list_dict=None
+        valid_cell_list_cluster=None
+        cell_list_cluster   =None
+        emb_cells           =None
+        emb_centroids       =None
+        # print(self.cumlen[-1])
+        gc.collect()
+        self.global_to_local = self._create_global_index_map()
+    def __len__(self):
+        return self.cumlen[-1]
+    def _get_edge_index_(self,dataframe, k=6,add=0):
+    # """
+        coordinates = dataframe[['x', 'y']].to_numpy()  # Shape: (n, 2)
+        dist_matrix = distance.cdist(coordinates, coordinates, metric='euclidean')  # Shape: (n, n)
+        n = len(coordinates)
+        edge_index = []
+        for i in range(n):
+            neighbors = np.argsort(dist_matrix[i])[1:k+1]
+            
+            for neighbor in neighbors:
+                edge_index.append((i+add, neighbor+add))  # (source, target)
+                edge_index.append((neighbor+add, i+add))
+        return edge_index
+    def _get_points_in_square(self,dataframe, r):
+        half_side = r
+        center= (dataframe['x'].mean(),dataframe['y'].mean())
+        x_min, x_max = center[0] - half_side, center[0] + half_side
+        y_min, y_max = center[1] - half_side, center[1] + half_side
+        
+        index_list_in_square =(
+        (dataframe['x'] >= x_min) & (dataframe['x'] <= x_max) &
+        (dataframe['y'] >= y_min) & (dataframe['y'] <= y_max)
+        )
+        list_in_square=dataframe[index_list_in_square]
+        return list_in_square
+    def _create_global_index_map(self):
+        """Create a mapping from global index to (dataset index, local index)."""
+        global_to_local = []
+        for i, name in enumerate(self.id2name):
+            local_indices = list(zip([i] * self.lengths[i], range(self.lengths[i])))
+            global_to_local.extend(local_indices)
+        return global_to_local
+    def _sorted_indices(self,centroids):
+        n_centroids = len(centroids)
+        distances = cdist(centroids[:,1:], centroids[:,1:])
+        visited = [False] * n_centroids
+        sorted_indices = []
+        current = 0  # Start from the first centroid
+
+        for _ in range(n_centroids):
+            # Mark current centroid as visited
+            visited[current] = True
+            sorted_indices.append(current)
+            
+            # Find the next closest unvisited centroid
+            unvisited_distances = [(i, distances[current, i]) for i in range(n_centroids) if not visited[i]]
+            if unvisited_distances:
+                current = min(unvisited_distances, key=lambda x: x[1])[0]
+        return sorted_indices
+    def __getitem__(self, index):
+        
+     
+        i, idx = self.global_to_local[index]
+        idx= self.sorted_indices_dict[self.id2name[i]][idx]
+        super_centroid= self.super_centroids_dict[self.id2name[i]][idx]
+        super_cluster_id= self.valid_super_clusters_dict[self.id2name[i]][idx]
+        edge_index= self.cluster_edge_index_list_dict[self.id2name[i]][idx]
+        exps= self.cluster_exps_list_dict[self.id2name[i]][idx]
+        super_centroid_exps= self.super_cluster_exps_list_dict[self.id2name[i]][idx]
+        cells_index_mask= self.filter_cell_list_dict[self.id2name[i]][idx]
+        centroid_index_mask= self.filter_cluster_list_dict[self.id2name[i]][idx]
+
+        # cell_ids= self.cell_id_list_dict[self.id2name[i]][idx]
+        emb_centroid=self.emb_centroids_dict[self.id2name[i]][centroid_index_mask]
+        emb_cells= self.emb_cells_dict[self.id2name[i]][cells_index_mask]
+        emb_super_centroid=self.emb_super_centroids_dict[self.id2name[i]][idx]
+        
+        centroid_num = len(centroid_index_mask)
+        
+        emb_x = torch.cat((emb_centroid, emb_cells), dim=0)
+        emb_cells=None
+        emb_centroid=None
+        centroid_index_mask=None
+        # super_centroid_exps=None
+        # gc.collect()
+    
+        
+      
+        # return item
+        
+        return  Data(
+            x= emb_x,  # Node features (including centroid and cells)
+            edge_index=edge_index,  # Edge indices (intra-cluster and centroid-to-cell)
+            emb_super_centroid=emb_super_centroid,  # Embedding for centroid
+            super_centroid=super_centroid, # Centroid coordinates
+            exps=exps,
+            super_centroid_exps=super_centroid_exps,
+            all_num= len(emb_x),
+            centroid_num= centroid_num
+            # cell_ids= cell_ids
+        )
+        # return emb_centroid, GE_centroid, centroid, emb_cells_in_cluster, cell_exps, cell_edge_index
+
+   

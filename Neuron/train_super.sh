@@ -5,7 +5,7 @@
 #                                     --start_epoch 0 \
 #                                      --local True\
 #                                     --partial  -1 \
-python train_super.py --embed_dir 'E:/DATA/crunch/tmp/preprocesseds' \
+python train_super.py --embed_dir 'E:/DATA/crunch/tmp/projection_super' \
                     --cluster_path 'E:/DATA/crunch/tmp/cluster'\
                                      --batch_size 5  \
                                      --epoch 100 \
