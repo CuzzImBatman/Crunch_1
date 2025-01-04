@@ -3,6 +3,24 @@ import torch.nn as nn
 from torch_geometric.nn import GATv2Conv,TransformerConv
 import torch
 import torch.nn.functional as F
+####
+from torchvision.models import DenseNet121_Weights
+import torchvision.models as models
+
+class ImageEncoder(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.model = models.densenet121(weights=DenseNet121_Weights.DEFAULT)
+        self.model = nn.Sequential(*list(self.model.children())[:-1])
+
+        for p in self.model.parameters():
+            p.requires_grad = True
+
+    def forward(self, x):
+        x = self.model(x)
+        x = F.adaptive_avg_pool2d(x, (1, 1))
+        x = x.view(x.size(0), -1)
+        return x
 class ThresholdedReLU(nn.Module):
     def __init__(self, theta=1.0,min_bound= 0.001):
         super(ThresholdedReLU, self).__init__()
@@ -81,6 +99,7 @@ class GATModel_Softmax(nn.Module):
         self.gat_conv_centroid = GATv2Conv(input_dim, hidden_dim, heads=num_heads, concat=False)
         self.gat_conv = GATv2Conv(input_dim, hidden_dim, heads=num_heads, concat=False)
         self.activate = F.elu
+        
         self.fc = nn.Linear(hidden_dim, n_classes)
     def forward(self, data):
         # Node features and edge indices from DataLoader
@@ -263,6 +282,56 @@ class TransConv(nn.Module):
         
         # print(h.shape,exps.shape)
         return h,exps,h_c,exps_c
+
+class Encoder_GAT(nn.Module):
+    def __init__(self, input_dim=1024, hidden_dim=1024, output_dim=1024, num_heads=3,n_classes=460,centroid_layer=False):
+        super(Encoder_GAT, self).__init__()
+
+        # MLP for flattening emb_cells_in_cluster
+       
+        # GATConv for graph processing
+        self.centroid_layer=centroid_layer
+        self.gat_conv_centroid = GATv2Conv(input_dim, hidden_dim, heads=num_heads, concat=False)
+        self.gat_conv = GATv2Conv(input_dim, hidden_dim, heads=num_heads, concat=False)
+        self.activate = F.elu
+        self.encoder= ImageEncoder()
+        self.fc = nn.Linear(hidden_dim, n_classes)
+    def forward(self, data, return_attention=False):
+        # Node features and edge indices from DataLoader
+        emb_data, exps, exps_c= data
+        edge_index = emb_data.edge_index  # x: [total_nodes, feature_dim], edge_index: [2, num_edges]
+        # emb_centroids = emb_data.x[:centroid_num]  # Shape: [num_clusters, 1024], centroids for each cluster
+        
+        # Process emb_cells_in_cluster with flatten_mlp (this processes cell features)
+        # emb_centroids= emb_centroids.view(-1,1024)
+        h_c=None
+       
+        if self.centroid_layer ==True:
+            emb_centroids= self.gat_conv_centroid(emb_data.x,emb_data.edge_index_centroid.T)
+            h_c= self.fc(emb_centroids).squeeze(0)
+            x= emb_centroids
+        else:
+            x=emb_data.x.float()
+            x= self.encoder(x)
+        try:
+            centroid_index=emb_data.centroid_index
+        except:
+            centroid_index=[]
+      
+        if return_attention:
+            h, (edge_indices, attention_scores) = self.gat_conv(x, edge_index.T, return_attention_weights=True)
+        else:
+            h = self.gat_conv(x, edge_index.T)
+        h = self.fc(h).squeeze(0)
+        
+        # print(h.shape,exps.shape)
+        if return_attention:
+            return h,exps,h_c,exps_c,centroid_index,edge_indices, attention_scores
+        return h,exps,h_c,exps_c,centroid_index
+
+
+
+
 def get_size(x):
     print("Shape of tensor:", x.shape)
 

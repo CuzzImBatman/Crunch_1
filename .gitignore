@@ -5779,3 +5779,5 @@ Neuron/model_result_testing/80_24_1024_1024/checkpoint_epoch_63.pth.tar
 Neuron/model_result_testing/80_24_1024_1024/checkpoint_epoch_67.pth.tar
 Neuron/model_result_testing/80_24_1024_1024/results.csv
 mclSTExp/model_result_super/24/checkpoint_epoch_219.pth.tar
+Neuron/model_result_super_all_encoder/80_24_1024_1024/results.csv
+Neuron/model_result_super_all_encoder/80_24_1024_1024/val_matrix.txt

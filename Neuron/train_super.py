@@ -6,7 +6,7 @@ import numpy as np
 # from torch.utils.data import Dataset, DataLoader
 from torch_geometric.loader import DataLoader
 import torch
-from model import GATModel_thres,GATModel_Softmax,GATModel_3,TransConv
+from model import GATModel_thres,Encoder_GAT,GATModel_3,TransConv
 import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
 from dataset import SuperNeuronData,build_super_batch_graph
@@ -145,7 +145,7 @@ def parse():
                         help='start epoch')
     parser.add_argument('--save_dir', default='./model_result', help='path where to save')
     parser.add_argument('--encoder_mode', default=False, type=bool, help='test encoder')
-    parser.add_argument('--encoder_name', default='vitsmall', help='fixed encoder name, for saving folder name')
+    parser.add_argument('--train_encoder', default=False,type=bool, help='train encoder')
     parser.add_argument('--demo', default=False, type=bool, help='toy run')
     parser.add_argument('--local', default=False, type=bool, help='toy run')
     parser.add_argument('--centroid_layer', default=False, type=bool, help='add layer')
@@ -220,6 +220,9 @@ def main(args):
         train_model= GATModel_thres
     else:
         train_model= GATModel_3
+    if args.train_encoder==True:
+        train_model= Encoder_GAT
+        args.input_dim= 1024
     traindata= SuperNeuronData(emb_folder=dir
                             ,train=True
                             , split =True
@@ -283,6 +286,17 @@ def main(args):
     min_val_mse = 200.0
     min_val_mae = 200.0
     start_epoch= args.start_epoch
+    if start_epoch > 0:
+        print(f"Resuming training from epoch {start_epoch} for {args.epochs} epochs")
+        file_mode = 'a'  # Append mode
+    else:
+        file_mode = 'w'  # Write mode
+    with open(f'{output_dir}/results.csv', file_mode) as csvfile:
+        csv_writer = csv.writer(csvfile)
+        csv_writer.writerow(['epoch', 'val acc', 'val auc', 'val f1', 'val kappa', 'val specificity'])
+
+    with open(f'{output_dir}/val_matrix.txt', 'w') as f:
+            print('test start', file=f)
     if start_epoch >0:
         start_epoch, args, model,scheduler, optimizer = load_checkpoint(start_epoch, model, optimizer,scheduler,args)
     # for step in range(start_epoch*len(train_dataLoader)):

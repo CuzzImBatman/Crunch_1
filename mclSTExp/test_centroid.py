@@ -146,6 +146,7 @@ def main():
     mse_list = []
     mae_list = []
     k=1850
+    leave_one_out= True
     if args.centroid== True:
         save_path = f"./model_result_centroid/{patch_size}/{epoch}/"
     else:
@@ -174,11 +175,13 @@ def main():
             expression_gt = test_spot_expressions[NAMES.index(test_name)]
             # spot_embeddings = train_spot_embeddings
             #########
-            
-            spot_embeddings=train_spot_embeddings
-            spot_expressions_rest = train_spot_expressions
-            # spot_embeddings= train_spot_embeddings[:index] + train_spot_embeddings[index+1:]
-            # spot_expressions_rest= train_spot_expressions[:index] + train_spot_expressions[index+1:]
+            if leave_one_out == False:
+                spot_embeddings = train_spot_embeddings
+                spot_expressions_rest = train_spot_expressions
+           
+            else:
+                spot_embeddings= train_spot_embeddings[:index] + train_spot_embeddings[index+1:]
+                spot_expressions_rest= train_spot_expressions[:index] + train_spot_expressions[index+1:]
             ##########################
             spot_embeddings=np.concatenate(spot_embeddings, axis=1)
             # spot_key = np.concatenate(spot_embeddings, axis=1)
@@ -201,14 +204,17 @@ def main():
             if expression_key.shape[0] != spot_key.shape[0]:
                 expression_key = expression_key.T
                 print("expression_key shape: ", expression_key.shape)
-            if os.path.exists(save_path+ f'indices_{test_name}.pkl'):
-                print('loading indices')
-                with open(save_path+ f'indices_{test_name}.pkl', 'rb') as f:  # Python 3: open(..., 'wb')
-                    indices = pickle.load(f)
-            else:
+            if leave_one_out == False:
+                if os.path.exists(save_path+ f'indices_{test_name}.pkl'):
+                    print('loading indices')
+                    with open(save_path+ f'indices_{test_name}.pkl', 'rb') as f:  # Python 3: open(..., 'wb')
+                        indices = pickle.load(f)
+                else:
+                    indices = find_matches(spot_key, image_query, top_k=k)
+                    with open(save_path+ f'indices_{test_name}.pkl', 'wb') as f:  # Python 3: open(..., 'wb')
+                                pickle.dump(indices, f)
+            else: 
                 indices = find_matches(spot_key, image_query, top_k=k)
-                with open(save_path+ f'indices_{test_name}.pkl', 'wb') as f:  # Python 3: open(..., 'wb')
-                            pickle.dump(indices, f)
             matched_spot_embeddings_pred = np.zeros((indices.shape[0], spot_key.shape[1]))
             matched_spot_expression_pred = np.zeros((indices.shape[0], expression_key.shape[1]))
             
@@ -264,6 +270,7 @@ def main():
                 true = expression_gt[mask]
                 pred = matched_spot_expression_pred[mask]
                 min_bound=0.24
+                min_bound=0
                 max_bound=4.6052
                 pred[pred >max_bound] = max_bound
                 pred[pred<min_bound]=0

@@ -5,7 +5,8 @@
 #                                     --start_epoch 0 \
 #                                      --local True\
 #                                     --partial  -1 \
-python train_super.py --embed_dir 'E:/DATA/crunch/tmp/projection' \
+python train_super.py --embed_dir 'E:/DATA/crunch/tmp/preprocesseds' \
+                    --cluster_path 'E:/DATA/crunch/tmp/cluster'\
                                      --batch_size 5  \
                                      --epoch 100 \
                                      --save_dir './model_result_super_all/80_24_256_1024' \
@@ -13,8 +14,7 @@ python train_super.py --embed_dir 'E:/DATA/crunch/tmp/projection' \
                                     --input_dim 256 \
                                      --local True\
                                     --partial  -1 \
-
-                                    #  --demo True \
+                                     --demo True \
                                      
                                     #  --nolog1p True
                                     #  --encoder_mode True 
@@ -23,5 +23,5 @@ python train_super.py --embed_dir 'E:/DATA/crunch/tmp/projection' \
                                     # 
                                     # --encoder_mode True ''D:/DATA/Gene_expression/Crunch/Register/preprocessed'
                                     
-                                    
+                            #  D:/DATA/Gene_Expression/crunch/patches       
                                     

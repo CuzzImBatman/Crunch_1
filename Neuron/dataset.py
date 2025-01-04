@@ -229,6 +229,7 @@ class NeuronData_3(Dataset):
                     cells_list_in_square=cells_list_in_cluster[index_cells_list_in_square]
                     if len(cells_list_in_square)==0:
                         cells_list_in_square=cells_list_in_cluster
+                    # cells_list_in_square=cells_list_in_cluster  ##TESTING
                     centroid_exps=  np.array([np.sum(cells_list_in_square['counts'].to_numpy()/len(cells_list_in_square), axis=0)])
                     if normalized==  True:
                         centroid_exps = centroid_exps / centroid_exps.sum(axis=1, keepdims=True) 
@@ -496,7 +497,19 @@ class SuperNeuronData(Dataset):
             emb_cells= torch.from_numpy(np.load(f'{emb_folder}/24/{group}/{name}.npy'))
             emb_centroids= torch.from_numpy(np.load(f'{emb_folder}/80/{group}/{name}.npy')) # len of valid_clusters(['group'] != -1) = len of emb_centroids
             emb_super_centroids= torch.from_numpy(np.load(f'{emb_folder}/256/{group}/{name}.npy')) # len of valid_clusters(['group'] != -1) = len of emb_centroids
-           
+            if len(emb_super_centroids.shape)>3:
+                resize_transform = transforms.Resize((32, 32))
+
+# Permute the tensor to change its shape from (N, H, W, C) to (N, C, H, W)
+                emb_super_centroids = emb_super_centroids.permute(0, 3, 1, 2)  # Change from (N, H, W, C) to (N, C, H, W)
+                emb_centroids = emb_centroids.permute(0, 3, 1, 2)  # Change from (N, H, W, C) to (N, C, H, W)
+                emb_cells = emb_cells.permute(0, 3, 1, 2)  # Change from (N, H, W, C) to (N, C, H, W)
+                # Apply the resize transform
+                emb_super_centroids = resize_transform(emb_super_centroids)
+                emb_centroids = resize_transform(emb_centroids)
+
+                # Permute back to (N, H, W, C) if needed
+                
             super_centroids = cluster_list.groupby('cluster')[['x', 'y']].mean().sort_index().reset_index().to_numpy()
            
             valid_cluster_list= cluster_list
@@ -571,7 +584,8 @@ class SuperNeuronData(Dataset):
                     cell_list_in_square= self._get_points_in_square(dataframe= cluster_cells,r=int(80/2))
                     if len(cell_list_in_square)==0:
                         cell_list_in_square=cluster_cells
-                    # cell_list_in_square=cluster_cells
+                    cell_list_in_square=cluster_cells  #TESTINGGGG
+    
                     centroid_exps=  np.array([np.sum(cell_list_in_square['counts'].to_numpy()/len(cell_list_in_square), axis=0)])
                     # centroid_exps= np.array([[0]*460])
                     all_centroid_exps.append(centroid_exps)
@@ -745,6 +759,7 @@ class SuperNeuronData(Dataset):
         emb_super_centroid=self.emb_super_centroids_dict[self.id2name[i]][idx]
         
         centroid_num = len(centroid_index_mask)
+        
         emb_x = torch.cat((emb_centroid, emb_cells), dim=0)
         emb_cells=None
         emb_centroid=None
@@ -807,7 +822,11 @@ def build_super_batch_graph(batch,device):
         node_offset += batch.all_num[i]
     edge_index = torch.cat(all_edge_index, dim=0).to(torch.long)
     # emb_centroids=batch.emb_centroid
-    batch.emb_super_centroid= batch.emb_super_centroid.view(-1,batch.x.shape[1])
+    # print(batch.emb_super_centroid.shape)
+    if len(batch.emb_super_centroid.shape)>1:
+        batch.emb_super_centroid= batch.emb_super_centroid.view(-1,3,32,32)
+    else:
+        batch.emb_super_centroid= batch.emb_super_centroid.view(-1,batch.x.shape[1])
     all_x = torch.cat([batch.emb_super_centroid, batch.x], dim=0)
    
     
