@@ -999,7 +999,7 @@ class SuperNeuronData_2(Dataset):
                 for cluster in filter_cluster:
                     cluster_cells= valid_cell_list_cluster[valid_cell_list_cluster['cluster']==cluster]
                     
-                    emb_cluster_cells=emb_cells_dict[name][valid_cell_list_cluster['cluster']==cluster]
+                    emb_cluster_cells=emb_cells_dict[name][cluster_cells.index.to_numpy()]
                     emb_cluster_cells = torch.mean(emb_cluster_cells, dim=0, keepdim=True)
                     emb_centroids_list.append(emb_cluster_cells)
                     emb_centroids[int(cluster),:]= emb_cluster_cells
