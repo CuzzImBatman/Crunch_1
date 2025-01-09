@@ -6,7 +6,7 @@ import numpy as np
 # from torch.utils.data import Dataset, DataLoader
 from torch_geometric.loader import DataLoader
 import torch
-from model import GATModel_thres,Encoder_GAT,GATModel_3,TransConv
+from model import GATModel_thres,Encoder_GAT,GATModel_3,GATModel_SAT
 import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
 from dataset import SuperNeuronData,SuperNeuronData_2,build_super_batch_graph
@@ -219,7 +219,7 @@ def main(args):
     if args.threshold == True:
         train_model= GATModel_thres
     else:
-        train_model= GATModel_3
+        train_model= GATModel_SAT
     if args.train_encoder==True:
         train_model= Encoder_GAT
         args.input_dim= 1024

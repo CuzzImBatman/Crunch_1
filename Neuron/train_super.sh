@@ -9,7 +9,7 @@ python train_super.py --embed_dir 'E:/DATA/crunch/tmp/projection_super' \
                     --cluster_path 'E:/DATA/crunch/tmp/cluster'\
                                      --batch_size 5  \
                                      --epoch 100 \
-                                     --save_dir './model_result_super_all/80_24_256_1024' \
+                                     --save_dir './model_result_super_all_testing/80_24_256_1024' \
                                     --start_epoch 0 \
                                     --input_dim 256 \
                                      --local True\
