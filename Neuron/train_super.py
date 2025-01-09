@@ -31,6 +31,7 @@ def train_one_epoch(model,args, train_loader, optimizer,scheduler, device, epoch
     optimizer.zero_grad()
     accumulation_steps = 1  # Number of steps to accumulate gradients
     if args.nolog1p ==False:
+        loss_function_1= F.cosine_similarity
         loss_function= F.mse_loss
     else:
         loss_function=F.cross_entropy
@@ -63,8 +64,9 @@ def train_one_epoch(model,args, train_loader, optimizer,scheduler, device, epoch
                 label_c= label_c.to(device)
                 loss = loss_function(pred, label)+ loss_function(pred_c, label_c)
             else:
-                loss = loss_function(pred, label)
-
+                beta=0.2
+                loss = (1-beta)*loss_function(pred, label)  + beta*loss_function_1(pred, label, dim=1, eps=1e-8)
+                # loss = loss_function(pred, label)
             loss.backward()
             if (i + 1) % accumulation_steps == 0 or (i + 1) == len(train_loader):
                 optimizer.step()  # Perform optimizer step

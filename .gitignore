@@ -5783,3 +5783,4 @@ Neuron/model_result_super_all_encoder/80_24_1024_1024/results.csv
 Neuron/model_result_super_all_encoder/80_24_1024_1024/val_matrix.txt
 Neuron/model_result_super_all_testing/80_24_256_1024/results.csv
 Neuron/model_result_super_all_testing/80_24_256_1024/val_matrix.txt
+Neuron/model_result_super_all_SAT/results.csv

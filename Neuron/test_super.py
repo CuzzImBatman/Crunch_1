@@ -138,12 +138,7 @@ def main(args):
 
     print(f"Start training for {args.epochs} epochs")
 
-    with open(f'{output_dir}/results.csv', 'w') as csvfile:
-        csv_writer = csv.writer(csvfile)
-        csv_writer.writerow(['epoch', 'val acc', 'val auc', 'val f1', 'val kappa', 'val specificity'])
-
-    with open(f'{output_dir}/val_matrix.txt', 'w') as f:
-            print('test start', file=f)
+    
 
   
     
