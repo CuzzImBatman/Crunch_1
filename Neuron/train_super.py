@@ -223,7 +223,7 @@ def main(args):
     if args.train_encoder==True:
         train_model= Encoder_GAT
         args.input_dim= 1024
-    traindata= SuperNeuronData_2(emb_folder=dir
+    traindata= SuperNeuronData(emb_folder=dir
                             ,train=True
                             , split =True
                             ,cluster_path=args.cluster_path
@@ -257,7 +257,7 @@ def main(args):
                             ,constant_predictor_lr=False
 )
     
-    val_set= [SuperNeuronData_2(emb_folder=dir
+    val_set= [SuperNeuronData(emb_folder=dir
                            ,train=False
                            , split =True
                             ,cluster_path=args.cluster_path
