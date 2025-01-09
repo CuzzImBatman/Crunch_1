@@ -221,7 +221,7 @@ def main(args):
     if args.threshold == True:
         train_model= GATModel_thres
     else:
-        train_model= GATModel_SAT
+        train_model= GATModel_3
     if args.train_encoder==True:
         train_model= Encoder_GAT
         args.input_dim= 1024
