@@ -53,6 +53,7 @@ def train_one_epoch(model,args, train_loader, optimizer,scheduler, device, epoch
             pred,label,pred_c,label_c,_ = model(graph_data)
             
             label = np.array(label, dtype=np.float32)
+            label[label==0]=-1 #testing
             label = torch.from_numpy(label)
             label= label.to(device)
             # print(label.shape,pred.shape)
