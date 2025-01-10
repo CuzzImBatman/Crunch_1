@@ -439,6 +439,8 @@ class GATModel_4(nn.Module):
             h, (edge_indices, attention_scores) = self.gat_conv(x, edge_index.T, return_attention_weights=True)
         else:
             h = self.gat_conv(x, edge_index.T)
+        x=None
+        del x
         h= self.gat_conv_0(h,edge_index.T)
         # h = self.fc(h).squeeze(0)
         
