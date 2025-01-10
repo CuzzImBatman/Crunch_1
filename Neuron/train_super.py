@@ -6,7 +6,7 @@ import numpy as np
 # from torch.utils.data import Dataset, DataLoader
 from torch_geometric.loader import DataLoader
 import torch
-from model import GATModel_thres,Encoder_GAT,GATModel_3,GATModel_SAT
+from model import GATModel_thres,Encoder_GAT,GATModel_3,GATModel_4
 import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
 from dataset import SuperNeuronData,SuperNeuronData_2,build_super_batch_graph
@@ -53,7 +53,7 @@ def train_one_epoch(model,args, train_loader, optimizer,scheduler, device, epoch
             pred,label,pred_c,label_c,_ = model(graph_data)
             
             label = np.array(label, dtype=np.float32)
-            label[label==0]=-1 #testing
+            # label[label==0]=-1 #testing
             label = torch.from_numpy(label)
             label= label.to(device)
             # print(label.shape,pred.shape)
@@ -222,7 +222,7 @@ def main(args):
     if args.threshold == True:
         train_model= GATModel_thres
     else:
-        train_model= GATModel_3
+        train_model= GATModel_4
     if args.train_encoder==True:
         train_model= Encoder_GAT
         args.input_dim= 1024
