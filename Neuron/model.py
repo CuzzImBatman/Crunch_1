@@ -390,7 +390,7 @@ class GATModel_SAT(nn.Module):
 
 class GATModel_4(nn.Module):
     def __init__(self, input_dim=1024, hidden_dim=1024, output_dim=1024, num_heads=3,n_classes=460,centroid_layer=False):
-        super(GATModel_3, self).__init__()
+        super(GATModel_4, self).__init__()
 
         # MLP for flattening emb_cells_in_cluster
        
