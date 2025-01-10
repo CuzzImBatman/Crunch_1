@@ -399,8 +399,8 @@ class GATModel_4(nn.Module):
         self.gat_conv_centroid = GATv2Conv(input_dim, hidden_dim, heads=num_heads, concat=False)
         # self.gat_conv = GATv2Conv(input_dim, int(n_classes/num_heads), heads=num_heads, concat=True)
         # self.gat_conv_0 = GATv2Conv(n_classes*num_heads, n_classes, heads=num_heads, concat=False)
-        self.gat_conv = GATv2Conv(input_dim, hidden_dim, heads=num_heads, concat=False)
-        self.gat_conv_0 = GATv2Conv(hidden_dim, n_classes, heads=num_heads, concat=False)
+        self.gat_conv = GATv2Conv(input_dim, n_classes, heads=num_heads, concat=False)
+        # self.gat_conv_0 = GATv2Conv(hidden_dim, n_classes, heads=num_heads, concat=False)
         self.activate = F.elu
         self.fc = nn.Linear(hidden_dim, n_classes)
     def forward(self, data, return_attention=False):
@@ -441,7 +441,7 @@ class GATModel_4(nn.Module):
             h = self.gat_conv(x, edge_index.T)
         x=None
         del x
-        h= self.gat_conv_0(h,edge_index.T)
+        # h= self.gat_conv_0(h,edge_index.T)
         # h = self.fc(h).squeeze(0)
         
         # print(h.shape,exps.shape)
