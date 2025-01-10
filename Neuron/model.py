@@ -389,7 +389,7 @@ class GATModel_SAT(nn.Module):
         return h,exps,h_c,exps_c,centroid_index
 
 class GATModel_4(nn.Module):
-    def __init__(self, input_dim=1024, hidden_dim=1024, output_dim=1024, num_heads=16,n_classes=460,centroid_layer=False):
+    def __init__(self, input_dim=1024, hidden_dim=512, output_dim=1024, num_heads=16,n_classes=460,centroid_layer=False):
         super(GATModel_4, self).__init__()
 
         # MLP for flattening emb_cells_in_cluster
@@ -398,8 +398,9 @@ class GATModel_4(nn.Module):
         self.centroid_layer=centroid_layer
         self.gat_conv_centroid = GATv2Conv(input_dim, hidden_dim, heads=num_heads, concat=False)
         # self.gat_conv = GATv2Conv(input_dim, int(n_classes/num_heads), heads=num_heads, concat=True)
-        self.gat_conv = GATv2Conv(input_dim, n_classes, heads=num_heads, concat=True)
-        self.gat_conv_0 = GATv2Conv(n_classes*num_heads, n_classes, heads=num_heads, concat=False)
+        # self.gat_conv_0 = GATv2Conv(n_classes*num_heads, n_classes, heads=num_heads, concat=False)
+        self.gat_conv = GATv2Conv(input_dim, hidden_dim, heads=num_heads, concat=False)
+        self.gat_conv_0 = GATv2Conv(hidden_dim, n_classes, heads=num_heads, concat=False)
         self.activate = F.elu
         self.fc = nn.Linear(hidden_dim, n_classes)
     def forward(self, data, return_attention=False):
