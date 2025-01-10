@@ -1,7 +1,8 @@
 
-python test_super.py --embed_dir 'E:/DATA/crunch/tmp/preprocessed' \
+python test_super.py --embed_dir 'E:/DATA/crunch/tmp/projection_super' \
 --batch_size 5  \
 --start_epoch 99 --device 'cuda' \
---save_dir './model_result_super_all/80_24_1024_1024_0' \
+--save_dir './model_result_super_all/80_24_256_1024' \
+--input_dim 256 \
 # --demo True \
 # --encoder_mode True \

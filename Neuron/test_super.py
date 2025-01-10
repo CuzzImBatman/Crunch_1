@@ -19,13 +19,13 @@ from sklearn.metrics import accuracy_score, roc_auc_score, f1_score, cohen_kappa
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 # torch.multiprocessing.set_start_method('spawn')
 import anndata
-
+import pickle
 from utils import get_R
 
 
 
 @torch.no_grad()
-def val_one_epoch(model, val_loader, device, centroid,demo=False, encoder_mode =False, data_type='val'):
+def val_one_epoch(model, val_loader, device, centroid,demo=False, encoder_mode =False, data_type='val',choosen_mask=None):
     model.eval()
     labels = torch.tensor([], device=device)
     preds = torch.tensor([], device=device)
@@ -44,6 +44,8 @@ def val_one_epoch(model, val_loader, device, centroid,demo=False, encoder_mode =
         output,label,_,_,centroid_index = model(graph_data)
         head= min(centroid,len(data))
         output[output < 0] = 0
+        # choosen_mask = [ 36,  37, 100, 172, 375, 453]
+        output[:,choosen_mask]=0
         mask = np.ones(output.shape[0], dtype=bool)
         mask[centroid_index] = False
         mask[:head]=False
@@ -81,7 +83,7 @@ def parse():
     parser.add_argument('--encoder_mode', default=False, type=bool, help='test encoder')
     parser.add_argument('--encoder_name', default='vitsmall', help='fixed encoder name, for saving folder name')
     parser.add_argument('--demo', default=False, type=bool, help='toy run')
-    
+    parser.add_argument('--input_dim', default=1024, type=int, help='input dimmension')
 
     return parser.parse_args()
 
@@ -118,8 +120,9 @@ def main(args):
     if args.demo== True:
         NAMES=NAMES[:1]
     dir=args.embed_dir
-
-    model=GATModel_3()
+    with open(f'E:/DATA/crunch/resources/indices_test_list.pkl','rb') as f:
+        indices_test_list=pickle.load(f)
+    model=GATModel_3(input_dim=args.input_dim)
     model= model.to(device)
 
     start_epoch= args.start_epoch
@@ -150,12 +153,14 @@ def main(args):
     heg_pcc_list = []
     mse_list = []
     mae_list = []
+    
     for index in range(len(val_loader)): 
         val_preds, val_labels = val_one_epoch(model=model,demo=args.demo
                                                 , val_loader=val_loader[index]
                                                 , device=device, data_type='val'
                                                 , centroid= args.batch_size
-                                                ,encoder_mode=args.encoder_mode)
+                                                ,encoder_mode=args.encoder_mode
+                                                ,choosen_mask= indices_test_list[index][0])
         mse=mean_squared_error(val_labels, val_preds)
         mae=mean_absolute_error(val_labels, val_preds)
         ###############
