@@ -43,9 +43,12 @@ def val_one_epoch(model, val_loader, device, centroid,demo=False, encoder_mode =
             centroid=0
         output,label,_,_,centroid_index = model(graph_data)
         head= min(centroid,len(data))
-        output[output < 0] = 0
+        min_bound=0.1
+        min_bound=0
+        
         # choosen_mask = [ 36,  37, 100, 172, 375, 453]
-        output[:,choosen_mask]=0
+        # output[:,choosen_mask]=0
+        output[output < min_bound] = 0
         mask = np.ones(output.shape[0], dtype=bool)
         mask[centroid_index] = False
         mask[:head]=False
@@ -120,7 +123,7 @@ def main(args):
     if args.demo== True:
         NAMES=NAMES[:1]
     dir=args.embed_dir
-    with open(f'E:/DATA/crunch/resources/indices_test_list.pkl','rb') as f:
+    with open(f'E:/DATA/crunch/resources/indices_test_list_7.pkl','rb') as f:
         indices_test_list=pickle.load(f)
     model=GATModel_3(input_dim=args.input_dim)
     model= model.to(device)
