@@ -813,7 +813,7 @@ def build_super_batch_graph(batch,device):
         add_edge_index=[]
         for j in range(batch.all_num[i]): #centroid_num
             add_edge_index.append((i,j+ node_offset + len(batch.edge_index)))
-            add_edge_index.append((j+ node_offset + len(batch.edge_index)),i) ##TESTING
+            add_edge_index.append((j+ node_offset + len(batch.edge_index),i)) ##TESTING
             if j < batch.centroid_num[i]:
                 centroid_index.append(j+ node_offset + len(batch.edge_index))
             ####testing
