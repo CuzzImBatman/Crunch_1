@@ -66,8 +66,8 @@ def train_one_epoch(model,args, train_loader, optimizer,scheduler, device, epoch
                 loss = loss_function(pred, label)+ loss_function(pred_c, label_c)
             else:
                 beta=0.2
-                loss = (1-beta)*loss_function(pred, label)  + beta*F.l1_loss(pred, label)
-                # loss = loss_function(pred, label)
+                # loss = (1-beta)*loss_function(pred, label)  + beta*F.l1_loss(pred, label)
+                loss = loss_function(pred, label)
             loss.backward()
             if (i + 1) % accumulation_steps == 0 or (i + 1) == len(train_loader):
                 optimizer.step()  # Perform optimizer step
