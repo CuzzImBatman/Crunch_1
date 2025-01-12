@@ -599,11 +599,11 @@ class SuperNeuronData(Dataset):
                     # all_cell_index=np.array([])
                     # print(all_cell_index.shape)
                     add= len(filter_cluster)+offset
-                    edge_index=self._get_edge_index_(cluster_cells,k=6,add=add)
+                    edge_index=self._get_edge_index_(cluster_cells,k=3,add=add)
                     # edge_index=[]
                     for cell_i in range(len(cluster_cells)):
                         edge_index.append((list(filter_cluster).index(cluster), cell_i+ add))
-                        edge_index.append(( cell_i+ add,list(filter_cluster).index(cluster))) ##TESTING
+                        # edge_index.append(( cell_i+ add,list(filter_cluster).index(cluster))) ##TESTING
                     offset = offset+ len(cluster_cells)
                     all_edge_index= all_edge_index+ edge_index
                     
@@ -813,7 +813,7 @@ def build_super_batch_graph(batch,device):
         add_edge_index=[]
         for j in range(batch.all_num[i]): #centroid_num
             add_edge_index.append((i,j+ node_offset + len(batch.edge_index)))
-            add_edge_index.append((j+ node_offset + len(batch.edge_index),i)) ##TESTING
+            # add_edge_index.append((j+ node_offset + len(batch.edge_index),i)) ##TESTING
             if j < batch.centroid_num[i]:
                 centroid_index.append(j+ node_offset + len(batch.edge_index))
             ####testing
