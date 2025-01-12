@@ -603,7 +603,7 @@ class SuperNeuronData(Dataset):
                     # edge_index=[]
                     for cell_i in range(len(cluster_cells)):
                         edge_index.append((list(filter_cluster).index(cluster), cell_i+ add))
-                        edge_index.append(( cell_i+ add),list(filter_cluster).index(cluster)) ##TESTING
+                        edge_index.append(( cell_i+ add,list(filter_cluster).index(cluster))) ##TESTING
                     offset = offset+ len(cluster_cells)
                     all_edge_index= all_edge_index+ edge_index
                     
