@@ -71,7 +71,7 @@ def train_one_epoch(model,args, train_loader, optimizer,scheduler, device, epoch
             loss.backward()
             if (i + 1) % accumulation_steps == 0 or (i + 1) == len(train_loader):
                 optimizer.step()  # Perform optimizer step
-                # scheduler.step()  # Adjust learning rate
+                scheduler.step()  # Adjust learning rate
                 optimizer.zero_grad()
             
             # optimizer.step()
@@ -249,9 +249,9 @@ def main(args):
     
     
     # optimizer = torch.optim.SGD(model.parameters(), lr=0.0002, weight_decay=1e-5)
-    optimizer_0 = torch.optim.Adam(model.parameters(), lr=0.0002, weight_decay=1e-5)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.00007, weight_decay=1e-5)
-    scheduler = LR_Scheduler(optimizer=optimizer_0
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0002, weight_decay=1e-5)
+    # optimizer = torch.optim.Adam(model.parameters(), lr=0.00007, weight_decay=1e-5)
+    scheduler = LR_Scheduler(optimizer=optimizer
                              ,num_epochs=args.epochs
                              ,base_lr=0.00018
                              ,iter_per_epoch = len(train_dataLoader)

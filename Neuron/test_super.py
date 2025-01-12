@@ -6,7 +6,7 @@ import numpy as np
 # from torch.utils.data import Dataset, DataLoader
 from torch_geometric.loader import DataLoader
 import torch
-from model import GATModel_3
+from model import GATModel_3,GATModel_5
 import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
 from dataset import SuperNeuronData,build_super_batch_graph
@@ -47,7 +47,7 @@ def val_one_epoch(model, val_loader, device, centroid,demo=False, encoder_mode =
         min_bound=0
         
         # choosen_mask = [ 36,  37, 100, 172, 375, 453]
-        # output[:,choosen_mask]=0
+        output[:,choosen_mask]=0
         output[output < min_bound] = 0
         mask = np.ones(output.shape[0], dtype=bool)
         mask[centroid_index] = False
@@ -125,7 +125,7 @@ def main(args):
     dir=args.embed_dir
     with open(f'E:/DATA/crunch/resources/indices_test_list_7.pkl','rb') as f:
         indices_test_list=pickle.load(f)
-    model=GATModel_3(input_dim=args.input_dim)
+    model=GATModel_5(input_dim=args.input_dim)
     model= model.to(device)
 
     start_epoch= args.start_epoch
