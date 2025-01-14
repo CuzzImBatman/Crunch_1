@@ -69,9 +69,10 @@ def train_one_epoch(model,args, train_loader, optimizer,scheduler, device, epoch
                 # loss = (1-beta)*loss_function(pred, label)  + beta*F.l1_loss(pred, label)
                 loss = loss_function(pred, label)
             loss.backward()
+            optimizer.step()  # Perform optimizer step
+            scheduler.step()  # Adjust learning rate
             if (i + 1) % accumulation_steps == 0 or (i + 1) == len(train_loader):
-                optimizer.step()  # Perform optimizer step
-                scheduler.step()  # Adjust learning rate
+               
                 optimizer.zero_grad()
             
             # optimizer.step()

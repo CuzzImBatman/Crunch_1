@@ -588,9 +588,14 @@ class SuperNeuronData(Dataset):
                     
                     cell_exps= np.stack(cluster_cells['counts'].to_numpy())
                     
-                    # centroid_exps=  np.array([np.sum(cell_list_in_square['counts'].to_numpy()/len(cell_list_in_square), axis=0)])
+                    centroid_exps=  np.array([np.sum(cell_list_in_square['counts'].to_numpy()/len(cell_list_in_square), axis=0)])
+                    # centroid_exps=  np.array([np.sum(cell_list_in_square['counts'].to_numpy(), axis=0)])
+                    '''testing'''
+                    cell_exps = cell_exps / cell_exps.sum(axis=1, keepdims=True)
+                    centroid_exps=  np.array([np.sum(cell_exps/len(cell_exps), axis=0)])
                     
-                    centroid_exps=  np.array([np.sum(cell_list_in_square['counts'].to_numpy(), axis=0)])
+                    '''end testing'''
+                    
                     # centroid_exps= np.array([[0]*460])
                     all_centroid_exps.append(centroid_exps)
                     
@@ -630,9 +635,7 @@ class SuperNeuronData(Dataset):
                 if nolog1p == False: 
                     super_centroid_exps = np.log1p(super_centroid_exps* 100)
                 all_exps= np.vstack([all_centroid_exps,all_cell_exps])
-                ####
                 all_exps = all_exps / all_exps.sum(axis=1, keepdims=True) 
-                ###
                 if nolog1p == False:
                     all_exps = np.log1p(all_exps* 100)
                 
