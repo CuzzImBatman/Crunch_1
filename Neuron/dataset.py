@@ -589,7 +589,7 @@ class SuperNeuronData(Dataset):
                     df_length= len(cell_list_in_square)
                     ratio_sample= 0.5
                     
-                    cluster_cells = cluster_cells.sample(n=max(df_length*ratio_sample,1), random_state=42)
+                    cluster_cells = cluster_cells.sample(n=int(max(df_length*ratio_sample,1)), random_state=42)
                     cell_exps= np.stack(cluster_cells['counts'].to_numpy())
                     
                     centroid_exps=  np.array([np.sum(cell_list_in_square['counts'].to_numpy()/len(cell_list_in_square), axis=0)])
