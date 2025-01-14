@@ -584,13 +584,22 @@ class SuperNeuronData(Dataset):
                     cell_list_in_square= self._get_points_in_square(dataframe= cluster_cells,r=int(80/2))
                     if len(cell_list_in_square)==0:
                         cell_list_in_square=cluster_cells
-                    # cell_list_in_square=cluster_cells  #TESTINGGGG
-    
-                    centroid_exps=  np.array([np.sum(cell_list_in_square['counts'].to_numpy()/len(cell_list_in_square), axis=0)])
+                    cell_list_in_square=cluster_cells  #TESTINGGGG
+                    
+                    cell_exps= np.stack(cluster_cells['counts'].to_numpy())
+                    
+                    # centroid_exps=  np.array([np.sum(cell_list_in_square['counts'].to_numpy()/len(cell_list_in_square), axis=0)])
+                    '''testing'''
+                    cell_exps = cell_exps / cell_exps.sum(axis=1, keepdims=True)
+                    centroid_exps=  np.array([np.sum(cell_exps/len(cell_exps), axis=0)])
+                    
+                    # centroid_exps = centroid_exps / centroid_exps.sum(axis=1, keepdims=True)
+                    '''end testing'''
+                    # centroid_exps=  np.array([np.sum(cell_list_in_square['counts'].to_numpy(), axis=0)])
                     # centroid_exps= np.array([[0]*460])
                     all_centroid_exps.append(centroid_exps)
                     
-                    cell_exps= np.stack(cluster_cells['counts'].to_numpy())
+                    
                     # cell_exps=np.array([[0]*460])
                     all_cell_exps.append(cell_exps)
                     
@@ -599,7 +608,7 @@ class SuperNeuronData(Dataset):
                     # all_cell_index=np.array([])
                     # print(all_cell_index.shape)
                     add= len(filter_cluster)+offset
-                    edge_index=self._get_edge_index_(cluster_cells,k=3,add=add)
+                    edge_index=self._get_edge_index_(cluster_cells,k=6,add=add)
                     # edge_index=[]
                     for cell_i in range(len(cluster_cells)):
                         edge_index.append((list(filter_cluster).index(cluster), cell_i+ add))
@@ -626,7 +635,9 @@ class SuperNeuronData(Dataset):
                 if nolog1p == False: 
                     super_centroid_exps = np.log1p(super_centroid_exps* 100)
                 all_exps= np.vstack([all_centroid_exps,all_cell_exps])
-                all_exps = all_exps / all_exps.sum(axis=1, keepdims=True) 
+                ####
+                # all_exps = all_exps / all_exps.sum(axis=1, keepdims=True) 
+                ###
                 if nolog1p == False:
                     all_exps = np.log1p(all_exps* 100)
                 

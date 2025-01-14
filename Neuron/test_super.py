@@ -43,8 +43,8 @@ def val_one_epoch(model, val_loader, device, centroid,demo=False, encoder_mode =
             centroid=0
         output,label,_,_,centroid_index = model(graph_data)
         head= min(centroid,len(data))
-        min_bound=0.1
-        min_bound=0
+        min_bound=0.24
+        # min_bound=0
         
         # choosen_mask = [ 36,  37, 100, 172, 375, 453]
         output[:,choosen_mask]=0
@@ -60,6 +60,8 @@ def val_one_epoch(model, val_loader, device, centroid,demo=False, encoder_mode =
         label = torch.from_numpy(label).to(device)
         labels = torch.cat([labels.cpu(), label.cpu()], dim=0)
         preds = torch.cat([preds.cpu(), output.detach().cpu()], dim=0)
+        preds = torch.round(preds * 100) / 100
+
         # if i==3 and demo==True:
         #     break
     print(labels.shape,preds.shape)
@@ -153,6 +155,7 @@ def main(args):
     print(f'start epoch: {start_epoch}, batch size: {args.batch_size}')
     
     hvg_pcc_list = []
+    hvg_pcc_rv_list = []
     heg_pcc_list = []
     mse_list = []
     mae_list = []
@@ -172,6 +175,11 @@ def main(args):
         val_preds= val_preds.numpy() 
         adata_true = anndata.AnnData(val_labels)
         adata_pred = anndata.AnnData(val_preds)
+        tmp_list_rv=[str(i) for i in range(val_labels.shape[0])]
+        # adata_true_rv = anndata.AnnData(val_labels.T)
+        # adata_pred_rv = anndata.AnnData(val_preds.T)
+        # adata_true_rv.var_names = tmp_list_rv
+        # adata_pred_rv.var_names = tmp_list_rv
         adata_pred.var_names = tmp_list
         adata_true.var_names = tmp_list
         gene_mean_expression = np.mean(adata_true.X, axis=0)
@@ -182,15 +190,17 @@ def main(args):
 
         heg_pcc, heg_p = get_R(top_50_genes_pred, top_50_genes_expression)
         hvg_pcc, hvg_p = get_R(adata_pred, adata_true)
+        # hvg_pcc_rv, hvg_p_rv = get_R(adata_pred_rv, adata_true_rv)
         hvg_pcc = hvg_pcc[~np.isnan(hvg_pcc)]
-        
+        hvg_pcc_rv = hvg_pcc_rv[~np.isnan(hvg_pcc_rv)]
         heg_pcc_list.append(np.mean(heg_pcc))
         hvg_pcc_list.append(np.mean(hvg_pcc))
+        # hvg_pcc_rv_list.append(np.mean(hvg_pcc_rv))
         mse_list.append(mse)
         mae_list.append(mae)
     
         print(f'name: {NAMES[index]}')
-        print('Val\t[epoch {}] mse:{}\tmae:{}\theg:{} \thevg:{}'.format(1, mse, mae,np.mean(heg_pcc),np.mean(hvg_pcc)))
+        print('Val\t[epoch {}] mse:{}\tmae:{}\theg:{} \thvg:{} \thvg_rv:{} '.format(1, mse, mae,np.mean(heg_pcc),np.mean(hvg_pcc),np.mean(hvg_pcc_rv)))
     # print(f"avg heg pcc : {np.mean(heg_pcc):.4f}")
     # print(f"avg hvg pcc: {np.mean(hvg_pcc):.4f}")
     print(f"Mean Squared Error (MSE): {np.mean(mse_list):.4f}")

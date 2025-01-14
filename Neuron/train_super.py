@@ -70,8 +70,8 @@ def train_one_epoch(model,args, train_loader, optimizer,scheduler, device, epoch
                 loss = loss_function(pred, label)
             loss.backward()
             if (i + 1) % accumulation_steps == 0 or (i + 1) == len(train_loader):
-                optimizer.step()  # Perform optimizer step
-                scheduler.step()  # Adjust learning rate
+                # optimizer.step()  # Perform optimizer step
+                # scheduler.step()  # Adjust learning rate
                 optimizer.zero_grad()
             
             # optimizer.step()
