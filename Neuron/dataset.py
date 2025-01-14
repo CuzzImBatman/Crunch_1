@@ -586,10 +586,14 @@ class SuperNeuronData(Dataset):
                         cell_list_in_square=cluster_cells
                     cell_list_in_square=cluster_cells  #TESTINGGGG
                     
+                    df_length= len(cell_list_in_square)
+                    ratio_sample= 0.5
+                    
+                    cluster_cells = cluster_cells.sample(n=max(df_length*ratio_sample,1), random_state=42)
                     cell_exps= np.stack(cluster_cells['counts'].to_numpy())
                     
-                    # centroid_exps=  np.array([np.sum(cell_list_in_square['counts'].to_numpy()/len(cell_list_in_square), axis=0)])
-                    centroid_exps=  np.array([np.sum(cell_list_in_square['counts'].to_numpy(), axis=0)])
+                    centroid_exps=  np.array([np.sum(cell_list_in_square['counts'].to_numpy()/len(cell_list_in_square), axis=0)])
+                    # centroid_exps=  np.array([np.sum(cell_list_in_square['counts'].to_numpy(), axis=0)])
                     # '''testing'''
                     # cell_exps = cell_exps / cell_exps.sum(axis=1, keepdims=True)
                     # centroid_exps=  np.array([np.sum(cell_exps/len(cell_exps), axis=0)])
