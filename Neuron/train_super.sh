@@ -12,6 +12,7 @@ CUDA_LAUNCH_BLOCKING=1 python train_super.py --embed_dir 'E:/DATA/crunch/tmp/pro
                                      --save_dir './model_result_super_all_testing/80_24_256_1024' \
                                     --start_epoch 0 \
                                     --input_dim 256 \
+                                    --ratio_sample 0.5 \
                                      --local True\
                                     --partial  -1 \
                                      --demo True \

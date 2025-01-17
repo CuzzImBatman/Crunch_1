@@ -438,6 +438,7 @@ class SuperNeuronData(Dataset):
         self.augmentation = augmentation
         
         # emb_dir=  
+        self.ratio_sample= ratio_sample
         self.encoder_mode= encoder_mode
         group='evel'
         NAMES = name_list

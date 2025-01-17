@@ -542,7 +542,7 @@ class OrderedGATv2Conv(MessagePassing):
         self.att = nn.Parameter(torch.Tensor(1, heads, 2 * out_channels))
 
         # LSTM for ordered sequence
-        self.lstm = nn.LSTM(out_channels, out_channels, batch_first=True,bidirectional=False)
+        self.lstm = nn.LSTM(out_channels, out_channels, batch_first=True)
 
         if bias:
     # Adjust bias size based on whether concatenation is used
@@ -617,7 +617,7 @@ class OrderedGATv2Conv(MessagePassing):
     
     
 class GATModel_LSTM(nn.Module):
-    def __init__(self, input_dim=1024, hidden_dim=512, output_dim=1024, num_heads=8,n_classes=460,centroid_layer=False):
+    def __init__(self, input_dim=1024, hidden_dim=512, output_dim=1024, num_heads=12,n_classes=460,centroid_layer=False):
         super(GATModel_LSTM, self).__init__()
 
         # MLP for flattening emb_cells_in_cluster
@@ -627,7 +627,7 @@ class GATModel_LSTM(nn.Module):
         # self.gat_conv = GATv2Conv(input_dim, int(n_classes/num_heads), heads=num_heads, concat=True)
         # self.gat_conv_0 = GATv2Conv(n_classes*num_heads, n_classes, heads=num_heads, concat=False)
         self.gat_conv = TransformerConv(input_dim, hidden_dim, heads=int(num_heads/2), concat=True)
-        # self.gat_conv_add = TransformerConv(hidden_dim*int(num_heads/2), hidden_dim, heads=2, concat=True)
+        # self.gat_conv_add = TransformerConv(hidden_dim*int(num_heads/2), hidden_dim, heads=int(num_heads), concat=True)
         self.gat_conv_0 = GATv2Conv(hidden_dim*int(num_heads/2), n_classes, heads=num_heads, concat=False)
         self.activate = F.elu
         self.fc = nn.Linear(hidden_dim, n_classes)
@@ -665,6 +665,7 @@ class GATModel_LSTM(nn.Module):
             h = self.gat_conv(x, edge_index.T)
         x=None
         del x
+        # h= self.gat_conv_add(self.activate(h),edge_index.T)
         h= self.gat_conv_0(self.activate(h),edge_index.T)
         # h = self.fc(h).squeeze(0)
         
