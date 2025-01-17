@@ -587,7 +587,7 @@ class SuperNeuronData(Dataset):
                     cell_list_in_square=cluster_cells  #TESTINGGGG
                     
                     df_length= len(cell_list_in_square)
-                    ratio_sample= 0.5
+                    ratio_sample= 1
                     if dataset_type ==1:
                         cluster_cells = cluster_cells.sample(n=int(max(df_length*ratio_sample,1)), random_state=42)
                     cell_exps= np.stack(cluster_cells['counts'].to_numpy())

@@ -624,11 +624,11 @@ class GATModel_LSTM(nn.Module):
        
         # GATConv for graph processing
         self.centroid_layer=centroid_layer
-        self.gat_conv_centroid = OrderedGATv2Conv(input_dim, hidden_dim, heads=num_heads, concat=False)
         # self.gat_conv = GATv2Conv(input_dim, int(n_classes/num_heads), heads=num_heads, concat=True)
         # self.gat_conv_0 = GATv2Conv(n_classes*num_heads, n_classes, heads=num_heads, concat=False)
-        self.gat_conv = TransformerConv(input_dim, hidden_dim, heads=num_heads, concat=False)
-        self.gat_conv_0 = GATv2Conv(hidden_dim, n_classes, heads=num_heads, concat=False)
+        self.gat_conv = TransformerConv(input_dim, hidden_dim, heads=int(num_heads/2), concat=True)
+        # self.gat_conv_add = TransformerConv(hidden_dim*int(num_heads/2), hidden_dim, heads=2, concat=True)
+        self.gat_conv_0 = GATv2Conv(hidden_dim*int(num_heads/2), n_classes, heads=num_heads, concat=False)
         self.activate = F.elu
         self.fc = nn.Linear(hidden_dim, n_classes)
     def forward(self, data, return_attention=False):
@@ -642,12 +642,8 @@ class GATModel_LSTM(nn.Module):
         # emb_centroids= emb_centroids.view(-1,1024)
         h_c=None
        
-        if self.centroid_layer ==True:
-            emb_centroids= self.gat_conv_centroid(emb_data.x,emb_data.edge_index_centroid.T)
-            h_c= self.fc(emb_centroids).squeeze(0)
-            x= emb_centroids
-        else:
-            x=emb_data.x
+        
+        x=emb_data.x
         try:
             centroid_index=emb_data.centroid_index
         except:
