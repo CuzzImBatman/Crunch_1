@@ -542,7 +542,7 @@ class OrderedGATv2Conv(MessagePassing):
         self.att = nn.Parameter(torch.Tensor(1, heads, 2 * out_channels))
 
         # LSTM for ordered sequence
-        self.lstm = nn.LSTM(out_channels, out_channels, batch_first=True)
+        self.lstm = nn.LSTM(out_channels, out_channels, batch_first=True,bidirectional=False)
 
         if bias:
     # Adjust bias size based on whether concatenation is used
@@ -627,7 +627,7 @@ class GATModel_LSTM(nn.Module):
         self.gat_conv_centroid = OrderedGATv2Conv(input_dim, hidden_dim, heads=num_heads, concat=False)
         # self.gat_conv = GATv2Conv(input_dim, int(n_classes/num_heads), heads=num_heads, concat=True)
         # self.gat_conv_0 = GATv2Conv(n_classes*num_heads, n_classes, heads=num_heads, concat=False)
-        self.gat_conv = OrderedGATv2Conv(input_dim, hidden_dim, heads=num_heads, concat=False)
+        self.gat_conv = TransformerConv(input_dim, hidden_dim, heads=num_heads, concat=False)
         self.gat_conv_0 = GATv2Conv(hidden_dim, n_classes, heads=num_heads, concat=False)
         self.activate = F.elu
         self.fc = nn.Linear(hidden_dim, n_classes)
