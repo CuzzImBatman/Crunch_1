@@ -617,7 +617,7 @@ class OrderedGATv2Conv(MessagePassing):
     
     
 class GATModel_LSTM(nn.Module):
-    def __init__(self, input_dim=1024, hidden_dim=512, output_dim=1024, num_heads=12,n_classes=460,centroid_layer=False):
+    def __init__(self, input_dim=1024, hidden_dim=512, output_dim=1024, num_heads=8,n_classes=460,centroid_layer=False):
         super(GATModel_LSTM, self).__init__()
 
         # MLP for flattening emb_cells_in_cluster
