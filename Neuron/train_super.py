@@ -158,6 +158,7 @@ def parse():
     parser.add_argument('--input_dim', default=1024, type=int, help='input dimmension')
     parser.add_argument('--cluster_path', default='../cluster', type=str, help='input dimmension')
     parser.add_argument('--threshold', default=False, type=bool, help='sparse threshold')
+    parser.add_argument('--ratio_sample', default=1, type=float, help='ratio data samoke')
     return parser.parse_args()
 
 def save_checkpoint(epoch, model, optimizer,scheduler, args, filename="checkpoint.pth.tar"):
@@ -234,6 +235,7 @@ def main(args):
                           ,name_list= train_NAMES
                           ,encoder_mode=args.encoder_mode
                           ,nolog1p= args.nolog1p
+                          ,ratio_sample=args.ratio_sample
                           )
     train_dataLoader =DataLoader(traindata, batch_size=args.batch_size, shuffle=False,pin_memory=pin)    
     # print(len(train_dataLoader))
@@ -268,7 +270,9 @@ def main(args):
                             ,cluster_path=args.cluster_path
                            ,name_list= [name]
                            ,nolog1p=args.nolog1p
-                           ,encoder_mode=args.encoder_mode) 
+                           ,encoder_mode=args.encoder_mode
+                           ,ratio_sample=args.ratio_sample
+                           ) 
               for name in val_NAMES]
     val_loader =[DataLoader(set, batch_size=args.batch_size, shuffle=False,pin_memory=pin)for set in val_set]    
     output_dir = args.save_dir

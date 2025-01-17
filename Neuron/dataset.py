@@ -434,7 +434,7 @@ def build_batch_graph(batch,device,centroid_layer):
     return Data(x=all_x.to(device), edge_index=edge_index.to(device), edge_index_centroid=edge_index_centroid),exps,centroid_exps
 class SuperNeuronData(Dataset):
     def __init__(self,cluster_path= 'E:/DATA/crunch/tmp/cluster', emb_folder=f'D:/DATA/Gene_expression/Crunch/preprocessed', augmentation=True,encoder_mode=False, random_seed=1234, train=True, split= False,
-                 name_list= ['DC1','DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I'],evel=False,nolog1p= False):
+                 name_list= ['DC1','DC5', 'UC1_I', 'UC1_NI', 'UC6_I', 'UC6_NI', 'UC7_I', 'UC9_I'],evel=False,nolog1p= False,ratio_sample=1):
         self.augmentation = augmentation
         
         # emb_dir=  
@@ -587,7 +587,7 @@ class SuperNeuronData(Dataset):
                     cell_list_in_square=cluster_cells  #TESTINGGGG
                     
                     df_length= len(cell_list_in_square)
-                    ratio_sample= 1
+                    ratio_sample= self.ratio_sample
                     if dataset_type ==1:
                         cluster_cells = cluster_cells.sample(n=int(max(df_length*ratio_sample,1)), random_state=42)
                     cell_exps= np.stack(cluster_cells['counts'].to_numpy())
