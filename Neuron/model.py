@@ -562,6 +562,8 @@ class OrderedGATv2Conv(MessagePassing):
             nn.init.zeros_(self.bias)
 
     def forward(self, x, edge_index, edge_attr=None):
+        
+        input_indices = torch.arange(x.size(0), device=x.device)
         if self.add_self_loops:
             edge_index, edge_attr = self.add_self_loops_if_needed(x.size(0), edge_index, edge_attr)
 
@@ -574,10 +576,10 @@ class OrderedGATv2Conv(MessagePassing):
             out += self.bias
 
         if self.concat:
-            return out.view(-1, self.heads * self.out_channels)
+            out= out.view(-1, self.heads * self.out_channels)
         else:
-            return out.mean(dim=1)
-
+            out=  out.mean(dim=1)
+        return out[input_indices]
     def message(self, x_i, x_j, edge_attr, index, ptr, size_i):
         # Compute attention scores
         x = torch.cat([x_i, x_j], dim=-1)
@@ -585,13 +587,14 @@ class OrderedGATv2Conv(MessagePassing):
         alpha = softmax(alpha, index, ptr, size_i)
 
         # Sort neighbors by attention scores
-        perm = torch.argsort(alpha, descending=True, dim=1)
-        sorted_alpha = torch.gather(alpha, 1, perm)
-        sorted_x_j = torch.gather(x_j, 1, perm.unsqueeze(-1).expand(-1, -1, x_j.size(-1)))
+        # perm = torch.argsort(alpha, descending=True, dim=1)
+        # sorted_alpha = torch.gather(alpha, 1, perm)
+        # sorted_x_j = torch.gather(x_j, 1, perm.unsqueeze(-1).expand(-1, -1, x_j.size(-1)))
 
-        # Normalize attention scores and construct sorted sequence
-        sorted_alpha = F.softmax(sorted_alpha, dim=1).unsqueeze(-1)
-        h_sorted = sorted_alpha * sorted_x_j
+        # # Normalize attention scores and construct sorted sequence
+        # sorted_alpha = F.softmax(sorted_alpha, dim=1).unsqueeze(-1)
+        alpha =F.softmax(alpha, dim=1).unsqueeze(-1)
+        h_sorted = alpha * x_j
 
         # Pass sorted sequence through LSTM
         h_sorted, _ = self.lstm(h_sorted)
@@ -614,7 +617,7 @@ class OrderedGATv2Conv(MessagePassing):
     
     
 class GATModel_LSTM(nn.Module):
-    def __init__(self, input_dim=1024, hidden_dim=512, output_dim=1024, num_heads=6,n_classes=460,centroid_layer=False):
+    def __init__(self, input_dim=1024, hidden_dim=512, output_dim=1024, num_heads=2,n_classes=460,centroid_layer=False):
         super(GATModel_LSTM, self).__init__()
 
         # MLP for flattening emb_cells_in_cluster
@@ -625,7 +628,7 @@ class GATModel_LSTM(nn.Module):
         # self.gat_conv = GATv2Conv(input_dim, int(n_classes/num_heads), heads=num_heads, concat=True)
         # self.gat_conv_0 = GATv2Conv(n_classes*num_heads, n_classes, heads=num_heads, concat=False)
         self.gat_conv = OrderedGATv2Conv(input_dim, hidden_dim, heads=num_heads, concat=False)
-        self.gat_conv_0 = OrderedGATv2Conv(hidden_dim, n_classes, heads=num_heads, concat=False)
+        self.gat_conv_0 = GATv2Conv(hidden_dim, n_classes, heads=num_heads, concat=False)
         self.activate = F.elu
         self.fc = nn.Linear(hidden_dim, n_classes)
     def forward(self, data, return_attention=False):
