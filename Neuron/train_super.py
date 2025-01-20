@@ -6,7 +6,7 @@ import numpy as np
 # from torch.utils.data import Dataset, DataLoader
 from torch_geometric.loader import DataLoader
 import torch
-from model import GATModel_thres,GATModel_LSTM,Encoder_GAT,GATModel_3,GATModel_4,GATModel_5
+from model import GATModel_thres,GATModel_TRANS,Encoder_GAT,GATModel_3,GATModel_4,GATModel_5,GATModel_test
 import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
 from dataset import SuperNeuronData,SuperNeuronData_2,build_super_batch_graph
@@ -25,7 +25,8 @@ from utils import get_R
 
 def train_one_epoch(model,args, train_loader, optimizer,scheduler, device, epoch):
     model.train()
-    total_loss = torch.zeros(1).to(device)
+    torch.autograd.set_detect_anomaly(True)
+    total_loss = torch.zeros(1).to(args.device)
     train_loader = tqdm(train_loader, file=sys.stdout, ncols=100, colour='red')
     # optimizer.zero_grad()
     optimizer.zero_grad()
@@ -39,11 +40,13 @@ def train_one_epoch(model,args, train_loader, optimizer,scheduler, device, epoch
         # graph_data= build_batch_graph(data,device,centroid_layer=centroid_layer)
         # data=None
         # pred,label,pred_c,label_c = model(graph_data)
+        # if i==2:
+        #     break
         if i!=-1: #for testing manual
             
             # data = data.to(device)
             
-            graph_data= build_super_batch_graph(data,device)
+            graph_data= build_super_batch_graph(data,args.device)
             data=None
             # print(graph_data.exps.shape)
             # excep?t:
@@ -55,14 +58,15 @@ def train_one_epoch(model,args, train_loader, optimizer,scheduler, device, epoch
             label = np.array(label, dtype=np.float32)
             # label[label==0]=-1 #testing
             label = torch.from_numpy(label)
-            label= label.to(device)
+            # print('hahahaha')
+            label= label.to(args.device)
             # print(label.shape,pred.shape)
 
             # print(type(label))
             if pred_c is not None:
                 label_c = np.array(label_c, dtype=np.float32)
                 label_c= torch.from_numpy(label_c)
-                label_c= label_c.to(device)
+                label_c= label_c.to(args.device)
                 loss = loss_function(pred, label)+ loss_function(pred_c, label_c)
             else:
                 beta=0.2
@@ -159,6 +163,7 @@ def parse():
     parser.add_argument('--cluster_path', default='../cluster', type=str, help='input dimmension')
     parser.add_argument('--threshold', default=False, type=bool, help='sparse threshold')
     parser.add_argument('--ratio_sample', default=1, type=float, help='ratio data samoke')
+    parser.add_argument('--save_epoch_interval', default=4, type=int, help='ratio data samoke')
     return parser.parse_args()
 
 def save_checkpoint(epoch, model, optimizer,scheduler, args, filename="checkpoint.pth.tar"):
@@ -224,7 +229,7 @@ def main(args):
     if args.threshold == True:
         train_model= GATModel_thres
     else:
-        train_model= GATModel_LSTM
+        train_model= GATModel_test
     if args.train_encoder==True:
         train_model= Encoder_GAT
         args.input_dim= 1024
@@ -374,7 +379,7 @@ def main(args):
             with open(f'{output_dir}/results.csv', 'a') as csvfile:
                 csv_writer = csv.writer(csvfile)
                 csv_writer.writerow([epoch+1,  np.mean(mse_list),np.mean(mae_list), np.mean(heg_pcc_list),np.mean(hvg_pcc_list)])
-        if (epoch+1)%4==0:
+        if (epoch+1)%args.save_epoch_interval ==0:
             checkpoint_filename = f"checkpoint_epoch_{epoch}.pth.tar"
             save_checkpoint(epoch, model, optimizer,scheduler, args, filename=checkpoint_filename)
 

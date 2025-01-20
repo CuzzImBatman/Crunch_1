@@ -7,12 +7,12 @@
 #                                     --partial  -1 \
 CUDA_LAUNCH_BLOCKING=1 python train_super.py --embed_dir 'E:/DATA/crunch/tmp/projection_super' \
                     --cluster_path 'E:/DATA/crunch/tmp/cluster'\
-                                     --batch_size 5  \
+                                     --batch_size 1 \
                                      --epoch 100 \
                                      --save_dir './model_result_super_all_testing/80_24_256_1024' \
                                     --start_epoch 0 \
                                     --input_dim 256 \
-                                    --ratio_sample 0.5 \
+                                    --ratio_sample 0.1 \
                                      --local True\
                                     --partial  -1 \
                                      --demo True \
