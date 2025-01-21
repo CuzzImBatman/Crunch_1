@@ -622,19 +622,19 @@ class SuperNeuronData(Dataset):
                     add= len(filter_cluster)+offset
                     edge_index=self._get_edge_index_(cluster_cells,k=6,add=add)
                     edge_type = [0]* len(edge_index)
-                    edge_index_testing= edge_index.copy() #TESTING
+                    # edge_index_testing= edge_index.copy() #TESTING
                     # print(len(edge_index),len(edge_type))
                     for cell_i in range(len(cluster_cells)):
                         edge_index.append((list(filter_cluster).index(cluster), cell_i+ add))
                         edge_type.append(1)
                         # print(len(edge_index),len(edge_type))
-                        edge_index_testing.append((list(filter_cluster).index(cluster), cell_i+ add)) ##TESTING
-                        edge_index_testing.append(( cell_i+ add,list(filter_cluster).index(cluster))) ##TESTING
+                        # edge_index_testing.append((list(filter_cluster).index(cluster), cell_i+ add)) ##TESTING
+                        # edge_index_testing.append(( cell_i+ add,list(filter_cluster).index(cluster))) ##TESTING
                         # print(len(edge_index),len(edge_type))
                     offset = offset+ len(cluster_cells)
                     # print(len(edge_index),len(edge_type))
                     all_edge_index= all_edge_index+ edge_index
-                    all_edge_index_testing= all_edge_index_testing+ edge_index_testing
+                    # all_edge_index_testing= all_edge_index_testing+ edge_index_testing ##TESTING
                     all_edge_type= all_edge_type+ edge_type
                     
                     cell_ids= None
@@ -666,11 +666,11 @@ class SuperNeuronData(Dataset):
                 # print(len(edge_index),len(edge_type))
                 all_edge_index= edge_index + all_edge_index
                 all_edge_type= edge_type + all_edge_type
-                all_edge_index_testing= edge_index + all_edge_index_testing #TESTING
+                # all_edge_index_testing= edge_index + all_edge_index_testing #TESTING
                 cluster_edge_index_list.append(all_edge_index)
                 cluster_edge_type_list.append(all_edge_type)
                 # print(len(all_edge_index),len(all_edge_type))
-                cluster_edge_index_list_testing.append(all_edge_index_testing) #TESTING
+                # cluster_edge_index_list_testing.append(all_edge_index_testing) #TESTING
                 cluster_exps_list.append(all_exps)   
                 filter_cell_list.append(all_cell_index)          
                 super_cluster_exps_list.append(super_centroid_exps)
@@ -690,7 +690,7 @@ class SuperNeuronData(Dataset):
             all_cell_id_list_dict[name]= all_cell_id_list 
             cluster_edge_index_list_dict[name]=cluster_edge_index_list
             cluster_edge_type_list_dict[name]=cluster_edge_type_list
-            cluster_edge_index_list_testing_dict[name]=cluster_edge_index_list_testing  #TESTING
+            # cluster_edge_index_list_testing_dict[name]=cluster_edge_index_list_testing  #TESTING
             cluster_exps_list_dict[name]= cluster_exps_list
             filter_cluster_list_dict[name]= filter_cluster_list
             filter_cell_list_dict[name]= filter_cell_list
@@ -709,7 +709,7 @@ class SuperNeuronData(Dataset):
         self.all_cell_id_list_dict              =all_cell_id_list_dict
         self.cluster_edge_index_list_dict       =cluster_edge_index_list_dict
         self.cluster_edge_type_list_dict        =cluster_edge_type_list_dict
-        self.cluster_edge_index_list_testing_dict=cluster_edge_index_list_testing_dict #TESTING
+        # self.cluster_edge_index_list_testing_dict=cluster_edge_index_list_testing_dict #TESTING
         self.cluster_exps_list_dict             =cluster_exps_list_dict
         self.filter_cluster_list_dict           =filter_cluster_list_dict
         self.filter_cell_list_dict              =filter_cell_list_dict
@@ -794,7 +794,7 @@ class SuperNeuronData(Dataset):
         super_cluster_id= self.valid_super_clusters_dict[self.id2name[i]][idx]
         edge_index= self.cluster_edge_index_list_dict[self.id2name[i]][idx]
         edge_type= self.cluster_edge_type_list_dict[self.id2name[i]][idx]
-        edge_index_testing= self.cluster_edge_index_list_testing_dict[self.id2name[i]][idx] #TESTING
+        # edge_index_testing= self.cluster_edge_index_list_testing_dict[self.id2name[i]][idx] #TESTING
         exps= self.cluster_exps_list_dict[self.id2name[i]][idx]
         super_centroid_exps= self.super_cluster_exps_list_dict[self.id2name[i]][idx]
         cells_index_mask= self.filter_cell_list_dict[self.id2name[i]][idx]
@@ -821,7 +821,7 @@ class SuperNeuronData(Dataset):
             x= emb_x,  # Node features (including centroid and cells)
             edge_index=edge_index,  # Edge indices (intra-cluster and centroid-to-cell)
             edge_type=edge_type,
-            edge_index_testing=edge_index_testing,  # TESTING
+            # edge_index_testing=edge_index_testing,  # TESTING
             emb_super_centroid=emb_super_centroid,  # Embedding for centroid
             super_centroid=super_centroid, # Centroid coordinates
             exps=exps,

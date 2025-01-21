@@ -27,13 +27,14 @@ def train_one_epoch(model,args, train_loader, optimizer,scheduler, device, epoch
     model.train()
     torch.autograd.set_detect_anomaly(True)
     total_loss = torch.zeros(1).to(args.device)
+    total_loss_mse= torch.zeros(1).to(args.device)
     train_loader = tqdm(train_loader, file=sys.stdout, ncols=100, colour='red')
     # optimizer.zero_grad()
     optimizer.zero_grad()
     accumulation_steps = 1  # Number of steps to accumulate gradients
     if args.nolog1p ==False:
-        loss_function_1= F.cosine_similarity
-        loss_function= F.mse_loss
+        loss_function= F.cosine_similarity
+        # loss_function= F.mse_loss
     else:
         loss_function=F.cross_entropy
     for i, data in enumerate(train_loader):
@@ -53,7 +54,7 @@ def train_one_epoch(model,args, train_loader, optimizer,scheduler, device, epoch
                 # print(data)
             # graph_data.cpu()
             # data.cpu()
-            pred,label,pred_c,label_c,_ = model(graph_data)
+            pred,label,pred_c,label_c,_,_ = model(graph_data)
             
             label = np.array(label, dtype=np.float32)
             # label[label==0]=-1 #testing
@@ -71,7 +72,8 @@ def train_one_epoch(model,args, train_loader, optimizer,scheduler, device, epoch
             else:
                 beta=0.2
                 # loss = (1-beta)*loss_function(pred, label)  + beta*F.l1_loss(pred, label)
-                loss = loss_function(pred, label)
+                loss = 1-loss_function(pred, label).mean()
+                # loss = loss_function(pred, label)
             loss.backward()
             optimizer.step()  # Perform optimizer step
             scheduler.step()  # Adjust learning rate
@@ -85,7 +87,11 @@ def train_one_epoch(model,args, train_loader, optimizer,scheduler, device, epoch
             
             total_loss = (total_loss * i + loss.detach()) / (i + 1)
             if args.nolog1p== False:
-                train_loader.desc = 'Train\t[epoch {}] lr: {}\tloss {}'.format(epoch, optimizer.param_groups[0]["lr"], round(total_loss.item(), 4))
+                mse_loss= F.mse_loss(pred, label)
+                total_loss_mse = (total_loss_mse * i + mse_loss.detach()) / (i + 1)
+                train_loader.desc = 'Train\t[epoch {}] lr: {}\tloss {} \tloss_mse{}'.format(epoch, optimizer.param_groups[0]["lr"]
+                                                                                            ,round(total_loss.item(), 4)
+                                                                                             ,round(total_loss_mse.item(), 4))
             else:
                 pred= torch.log1p(pred*100)
                 label= torch.log1p(label*100)
@@ -116,7 +122,7 @@ def val_one_epoch(model, val_loader, device,args, centroid, data_type='val'):
         # graph_data.cpu()
         if args.encoder_mode ==True:
             centroid=0
-        output,label,_,_,centroid_index = model(graph_data)
+        output,label,_,_,centroid_index,edge_index = model(graph_data)
         head= min(centroid,len(data))
         output[output < 0] = 0
         mask = np.ones(output.shape[0], dtype=bool)
@@ -325,7 +331,7 @@ def main(args):
                                       ,scheduler=scheduler
                                       , device=device, epoch=epoch + 1
                                       )
-        if (epoch+1)%8 ==0: 
+        if (epoch+1)%4 ==0: 
             hvg_pcc_list = []
             heg_pcc_list = []
             mse_list = []
@@ -341,8 +347,10 @@ def main(args):
                 mae=mean_absolute_error(val_labels, val_preds)
                 ###############
                 tmp_list=[str(i) for i in range(460)]
+                # tmp_list=[str(i) for i in range(val_labels.shape[0])]
                 val_labels=val_labels.numpy()
                 val_preds= val_preds.numpy() 
+                dim=0
                 adata_true = anndata.AnnData(val_labels)
                 adata_pred = anndata.AnnData(val_preds)
                 adata_pred.var_names = tmp_list
@@ -353,8 +361,8 @@ def main(args):
                 top_50_genes_expression = adata_true[:, top_50_genes_names]
                 top_50_genes_pred = adata_pred[:, top_50_genes_names]
 
-                heg_pcc, heg_p = get_R(top_50_genes_pred, top_50_genes_expression)
-                hvg_pcc, hvg_p = get_R(adata_pred, adata_true)
+                heg_pcc, heg_p = get_R(top_50_genes_pred, top_50_genes_expression,dim=0)
+                hvg_pcc, hvg_p = get_R(adata_pred, adata_true,dim=0)
                 hvg_pcc = hvg_pcc[~np.isnan(hvg_pcc)]
                 
                 heg_pcc_list.append(np.mean(heg_pcc))

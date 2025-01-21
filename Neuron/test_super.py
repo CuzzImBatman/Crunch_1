@@ -6,7 +6,7 @@ import numpy as np
 # from torch.utils.data import Dataset, DataLoader
 from torch_geometric.loader import DataLoader
 import torch
-from model import GATModel_3,GATModel_5
+from model import GATModel_3,GATModel_5,GATModel_TRANS
 import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
 from dataset import SuperNeuronData,build_super_batch_graph
@@ -21,6 +21,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error
 import anndata
 import pickle
 from utils import get_R
+from scipy.stats import pearsonr,spearmanr
 
 
 
@@ -41,17 +42,44 @@ def val_one_epoch(model, val_loader, device, centroid,demo=False, encoder_mode =
         # graph_data.cpu()
         if encoder_mode ==True:
             centroid=0
-        output,label,_,_,centroid_index = model(graph_data)
+        output,label,_,_,centroid_index,edge_index = model(graph_data)
         head= min(centroid,len(data))
-        min_bound=0.24
+        min_bound=0.23
         # min_bound=0
         
         # choosen_mask = [ 36,  37, 100, 172, 375, 453]
         output[:,choosen_mask]=0
         output[output < min_bound] = 0
+        # output[(output < 0.19) & (output>0.1)] = 0.1
+        # output[(output < min_bound) & (output >0.2)] = 0.2
+        
         mask = np.ones(output.shape[0], dtype=bool)
         mask[centroid_index] = False
         mask[:head]=False
+        ''''''
+        edge_index=edge_index.T
+        # min_bound=0.2
+        centroid_index=torch.tensor(centroid_index, device=edge_index.device)
+        # for centroid in centroid_index:
+        #     # Find cells connected to the current centroid using edge_index
+        #     is_connected = edge_index[0] == centroid
+        #     connected_cells = edge_index[1][is_connected]
+
+        #     # Create a mask for genes in the current centroid below the threshold
+        #     # gene_mask = output[centroid] < min_bound
+
+        #     # Zero out these genes for the centroid
+        #     # output[centroid, gene_mask] = 0
+        #     # print(centroid,is_connected)
+
+        #     # Zero out the same genes for all connected cells
+        #     # output[connected_cells, :] *= ~gene_mask
+        #     output[connected_cells] = output[connected_cells]+ output[centroid]/(0.9*len(connected_cells))
+        ''''''
+        output[output < min_bound] = 0
+        # mask = np.zeros(output.shape[0], dtype=bool)
+
+        
         # print(centroid_index,head)
         output= output[mask]
         label= label[mask]
@@ -61,6 +89,7 @@ def val_one_epoch(model, val_loader, device, centroid,demo=False, encoder_mode =
         labels = torch.cat([labels.cpu(), label.cpu()], dim=0)
         preds = torch.cat([preds.cpu(), output.detach().cpu()], dim=0)
         preds = torch.round(preds * 100) / 100
+        # labels = torch.round(labels * 100) / 100
 
         # if i==3 and demo==True:
         #     break
@@ -127,7 +156,7 @@ def main(args):
     dir=args.embed_dir
     with open(f'E:/DATA/crunch/resources/indices_test_list_7.pkl','rb') as f:
         indices_test_list=pickle.load(f)
-    model=GATModel_5(input_dim=args.input_dim)
+    model=GATModel_TRANS(input_dim=args.input_dim)
     model= model.to(device)
 
     start_epoch= args.start_epoch
@@ -171,15 +200,12 @@ def main(args):
         mae=mean_absolute_error(val_labels, val_preds)
         ###############
         tmp_list=[str(i) for i in range(460)]
+        # tmp_list=[str(i) for i in range(val_labels.shape[0])]
         val_labels=val_labels.numpy()
         val_preds= val_preds.numpy() 
+        dim=0
         adata_true = anndata.AnnData(val_labels)
         adata_pred = anndata.AnnData(val_preds)
-        tmp_list_rv=[str(i) for i in range(val_labels.shape[0])]
-        # adata_true_rv = anndata.AnnData(val_labels.T)
-        # adata_pred_rv = anndata.AnnData(val_preds.T)
-        # adata_true_rv.var_names = tmp_list_rv
-        # adata_pred_rv.var_names = tmp_list_rv
         adata_pred.var_names = tmp_list
         adata_true.var_names = tmp_list
         gene_mean_expression = np.mean(adata_true.X, axis=0)
@@ -188,25 +214,25 @@ def main(args):
         top_50_genes_expression = adata_true[:, top_50_genes_names]
         top_50_genes_pred = adata_pred[:, top_50_genes_names]
 
-        heg_pcc, heg_p = get_R(top_50_genes_pred, top_50_genes_expression)
-        hvg_pcc, hvg_p = get_R(adata_pred, adata_true)
-        # hvg_pcc_rv, hvg_p_rv = get_R(adata_pred_rv, adata_true_rv)
+        heg_pcc, heg_p = get_R(top_50_genes_pred, top_50_genes_expression,dim=0)
+        hvg_pcc, hvg_p = get_R(adata_pred, adata_true,dim=0)
         hvg_pcc = hvg_pcc[~np.isnan(hvg_pcc)]
-        hvg_pcc_rv = hvg_pcc_rv[~np.isnan(hvg_pcc_rv)]
+        
         heg_pcc_list.append(np.mean(heg_pcc))
         hvg_pcc_list.append(np.mean(hvg_pcc))
-        # hvg_pcc_rv_list.append(np.mean(hvg_pcc_rv))
         mse_list.append(mse)
         mae_list.append(mae)
     
         print(f'name: {NAMES[index]}')
-        print('Val\t[epoch {}] mse:{}\tmae:{}\theg:{} \thvg:{} \thvg_rv:{} '.format(1, mse, mae,np.mean(heg_pcc),np.mean(hvg_pcc),np.mean(hvg_pcc_rv)))
-    # print(f"avg heg pcc : {np.mean(heg_pcc):.4f}")
-    # print(f"avg hvg pcc: {np.mean(hvg_pcc):.4f}")
+        print('Val] mse:{}\tmae:{}\theg:{} \thevg:{}'.format(mse, mae,np.mean(heg_pcc),np.mean(hvg_pcc)))
+    
     print(f"Mean Squared Error (MSE): {np.mean(mse_list):.4f}")
     print(f"Mean Absolute Error (MAE): {np.mean(mae_list):.4f}")
     print(f"avg heg pcc: {np.mean(heg_pcc_list):.4f}")
     print(f"avg hvg pcc: {np.mean(hvg_pcc_list):.4f}")
+    # min_val_mse = min(min_val_mse, np.mean(mse_list))
+    # min_val_mae = min(min_val_mae, np.mean(mae_list))
+    
 
     
         

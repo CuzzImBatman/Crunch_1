@@ -23,7 +23,7 @@ def get_lr(optimizer):
 
 
 import numpy as np
-from scipy.stats import pearsonr
+from scipy.stats import pearsonr,spearmanr
 
 
 class AvgMeter:
@@ -49,7 +49,7 @@ def get_lr(optimizer):
         return param_group["lr"]
 
 
-def get_R(data1, data2, dim=1, func=pearsonr):
+def get_R(data1, data2, dim=1, func=spearmanr):
     adata1 = data1.X
     adata2 = data2.X
     r1, p1 = [], []
