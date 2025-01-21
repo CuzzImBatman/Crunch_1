@@ -71,7 +71,7 @@ def train_one_epoch(model,args, train_loader, optimizer,scheduler, device, epoch
                 loss = loss_function(pred, label)+ loss_function(pred_c, label_c)
             else:
                 beta=0.15
-                loss = (1-beta)*(1-loss_function(pred, label).mean())  + beta*F.mse(pred, label)
+                loss = (1-beta)*(1-loss_function(pred, label).mean())  + beta*F.mse_loss(pred, label)
                 # loss = 1-loss_function(pred, label).mean()
                 # loss = loss_function(pred, label)
             loss.backward()
