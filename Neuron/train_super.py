@@ -70,9 +70,9 @@ def train_one_epoch(model,args, train_loader, optimizer,scheduler, device, epoch
                 label_c= label_c.to(args.device)
                 loss = loss_function(pred, label)+ loss_function(pred_c, label_c)
             else:
-                beta=0.2
-                # loss = (1-beta)*loss_function(pred, label)  + beta*F.l1_loss(pred, label)
-                loss = 1-loss_function(pred, label).mean()
+                beta=0.15
+                loss = (1-beta)*(1-loss_function(pred, label).mean())  + beta*F.mse(pred, label)
+                # loss = 1-loss_function(pred, label).mean()
                 # loss = loss_function(pred, label)
             loss.backward()
             optimizer.step()  # Perform optimizer step
@@ -331,7 +331,7 @@ def main(args):
                                       ,scheduler=scheduler
                                       , device=device, epoch=epoch + 1
                                       )
-        if (epoch+1)%4 ==0: 
+        if (epoch+1)%8 ==0: 
             hvg_pcc_list = []
             heg_pcc_list = []
             mse_list = []

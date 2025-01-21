@@ -45,10 +45,10 @@ def val_one_epoch(model, val_loader, device, centroid,demo=False, encoder_mode =
         output,label,_,_,centroid_index,edge_index = model(graph_data)
         head= min(centroid,len(data))
         min_bound=0.23
-        # min_bound=0
+        min_bound=0
         
         # choosen_mask = [ 36,  37, 100, 172, 375, 453]
-        output[:,choosen_mask]=0
+        # output[:,choosen_mask]=0
         output[output < min_bound] = 0
         # output[(output < 0.19) & (output>0.1)] = 0.1
         # output[(output < min_bound) & (output >0.2)] = 0.2
