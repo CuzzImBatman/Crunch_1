@@ -343,7 +343,7 @@ def main(args):
                                       ,scheduler=scheduler
                                       , device=device, epoch=epoch + 1
                                       )
-        if (epoch+1)%4 ==0: 
+        if (epoch+1)%8 ==0: 
             hvg_pcc_list = []
             heg_pcc_list = []
             mse_list = []
