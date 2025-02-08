@@ -1225,13 +1225,14 @@ class GATModel_test(nn.Module):
         # GATConv for graph processing
         num_relation=3
         self.centroid_layer=centroid_layer
-        self.gat_conv_1 = GATv2Conv(hidden_dim*int(num_heads/2), hidden_dim*int(num_heads/2), heads=int(num_heads/2), concat=False,residual=True)
+        self.gat_conv_1 = TransformerConv(input_dim, input_dim, heads=int(num_heads/2), concat=False)
+        # self.gat_conv_1 = GATv2Conv(input_dim, input_dim, heads=int(num_heads/2), concat=False, residual=True)
         # self.gat_conv = RGATConv(input_dim, hidden_dim, heads=int(num_heads/2),num_relations =num_relation, concat=True)
-        self.gat_conv = GATv2Conv(input_dim, hidden_dim, heads=int(num_heads/2), concat=True)
-        # self.gat_conv = TransformerConv(input_dim, hidden_dim, heads=int(num_heads/2), concat=True)
+        self.gat_conv = TransformerConv(input_dim, hidden_dim, heads=int(num_heads/2), concat=True)
+        # self.gat_conv = GATv2Conv(input_dim, hidden_dim, heads=int(num_heads/2), concat=True, residual=True)    
         # self.gat_conv_add = TransformerConv(hidden_dim*int(num_heads/2), hidden_dim, heads=int(num_heads), concat=True)
         self.gat_conv_0 = GATv2Conv(hidden_dim*int(num_heads/2), n_classes, heads=num_heads, concat=False)
-        # self.gat_conv_0 = RGATConv(hidden_dim*int(num_heads/2), n_classes, heads=num_heads,num_relations =num_relation, concat=False)
+        # self.gat_conv_00 = TransformerConv(n_classes, n_classes, heads=num_heads, concat=False)
         self.activate = F.elu
         self.fc = nn.Linear(hidden_dim, n_classes)
     def forward(self, data, return_attention=False):
@@ -1261,11 +1262,13 @@ class GATModel_test(nn.Module):
         
         # h=self.activate(self.gat_conv(x_combined, edge_index.T))
         # edge_type= torch.full((len(edge_index),), 0).to('cuda:0')
-        edge_type= emb_data.edge_type
+        # edge_type= emb_data.edge_type
         if return_attention:
             h, (edge_indices, attention_scores) = self.gat_conv(x, edge_index.T, return_attention_weights=True)
         else:
-            h = self.gat_conv(x, edge_index.T)
+            h_1= self.gat_conv_1(x, edge_index.T)
+            h = self.gat_conv(x-h_1, edge_index.T)
+            
             # h = self.gat_conv(x, edge_index.T, edge_type)
             # h = self.gat_conv(x, emb_data.edge_index_testing.T)
         x=None
@@ -1274,12 +1277,13 @@ class GATModel_test(nn.Module):
         # h = self.gat_conv_1(self.activate(h),edge_index.T)
         # h= self.gat_conv_0(self.activate(h),edge_index.T, edge_type)
         h= self.gat_conv_0(self.activate(h),edge_index.T)
+        # h_0=self.gat_conv_00(self.activate(h),edge_index.T)
         # h = self.fc(h).squeeze(0)
         
         # print(h.shape,exps.shape)
         if return_attention:
             return h,exps,h_c,exps_c,centroid_index,edge_indices, attention_scores
-        return h,exps,h_c,exps_c,centroid_index,edge_index
+        return h,exps,h_c,exps_c,centroid_index,edge_index,h_1
     
     
 

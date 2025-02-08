@@ -33,8 +33,8 @@ def train_one_epoch(model,args, train_loader, optimizer,scheduler, device, epoch
     optimizer.zero_grad()
     accumulation_steps = 1  # Number of steps to accumulate gradients
     if args.nolog1p ==False:
-        loss_function= F.cosine_similarity
-        # loss_function= F.mse_loss
+        # loss_function= F.cosine_similarity
+        loss_function= F.mse_loss
     else:
         loss_function=F.cross_entropy
     for i, data in enumerate(train_loader):
@@ -54,8 +54,8 @@ def train_one_epoch(model,args, train_loader, optimizer,scheduler, device, epoch
                 # print(data)
             # graph_data.cpu()
             # data.cpu()
-            pred,label,pred_c,label_c,_,_ = model(graph_data)
-            
+            pred,label,pred_c,label_c,_,_,h_1 = model(graph_data)
+            # pred,label,pred_c,label_c,_,_, = model(graph_data)
             label = np.array(label, dtype=np.float32)
             # label[label==0]=-1 #testing
             label = torch.from_numpy(label)
@@ -71,9 +71,13 @@ def train_one_epoch(model,args, train_loader, optimizer,scheduler, device, epoch
                 loss = loss_function(pred, label)+ loss_function(pred_c, label_c)
             else:
                 beta=0.15
-                loss = (1-beta)*(1-loss_function(pred, label).mean())  + beta*F.mse_loss(pred, label)
+                # loss = (1-beta)*(1-loss_function(pred, label).mean())  + beta*F.mse_loss(pred, label)
                 # loss = 1-loss_function(pred, label).mean()
-                # loss = loss_function(pred, label)
+                # loss= loss_function(pred, label)
+                loss = 0.05*loss_function(pred, label) + \
+                +5*F.mse_loss(pred, label) +\
+                0.01* torch.linalg.vector_norm(h_1, ord=float('inf'))
+                # 0.01* torch.linalg.vector_norm(h_1, ord=float('inf')) 
             loss.backward()
             optimizer.step()  # Perform optimizer step
             scheduler.step()  # Adjust learning rate
@@ -86,6 +90,11 @@ def train_one_epoch(model,args, train_loader, optimizer,scheduler, device, epoch
             # optimizer.zero_grad()
             
             total_loss = (total_loss * i + loss.detach()) / (i + 1)
+            # mse_loss= F.mse_loss(pred, label)
+            # total_loss_mse = (total_loss_mse * i + mse_loss.detach()) / (i + 1)
+            # train_loader.desc = 'Train\t[epoch {}] lr: {}\tloss {} \tloss_mse{}'.format(epoch, optimizer.param_groups[0]["lr"]
+            #                                                                                 ,round(total_loss.item(), 4)
+            #                                                                                  ,round(total_loss_mse.item(), 4))
             if args.nolog1p== False:
                 mse_loss= F.mse_loss(pred, label)
                 total_loss_mse = (total_loss_mse * i + mse_loss.detach()) / (i + 1)
@@ -93,12 +102,14 @@ def train_one_epoch(model,args, train_loader, optimizer,scheduler, device, epoch
                                                                                             ,round(total_loss.item(), 4)
                                                                                              ,round(total_loss_mse.item(), 4))
             else:
+                pred[pred < 0] = 0
                 pred= torch.log1p(pred*100)
                 label= torch.log1p(label*100)
                 mse_loss= F.mse_loss(pred, label)
+                total_loss_mse = (total_loss_mse * i + mse_loss.detach()) / (i + 1)
                 train_loader.desc = 'Train\t[epoch {}] lr: {}\tloss {} \tloss_mse{}'.format(epoch, optimizer.param_groups[0]["lr"]
                                                                                             ,round(total_loss.item(), 4)
-                                                                                             ,round(mse_loss.item(), 4))
+                                                                                             ,round(total_loss_mse.item(), 4))
             # if i==3 and demo==True:
         #     break
     torch.cuda.empty_cache()
@@ -122,7 +133,7 @@ def val_one_epoch(model, val_loader, device,args, centroid, data_type='val'):
         # graph_data.cpu()
         if args.encoder_mode ==True:
             centroid=0
-        output,label,_,_,centroid_index,edge_index = model(graph_data)
+        output,label,_,_,centroid_index,edge_index,_ = model(graph_data)
         head= min(centroid,len(data))
         output[output < 0] = 0
         mask = np.ones(output.shape[0], dtype=bool)
@@ -235,7 +246,7 @@ def main(args):
     if args.threshold == True:
         train_model= GATModel_thres
     else:
-        train_model= GATModel_TRANS
+        train_model= GATModel_test
     if args.train_encoder==True:
         train_model= Encoder_GAT
         args.input_dim= 1024
@@ -281,11 +292,12 @@ def main(args):
                             ,cluster_path=args.cluster_path
                            ,name_list= [name]
                            ,nolog1p=args.nolog1p
+                        #    ,nolog1p=False
                            ,encoder_mode=args.encoder_mode
-                           ,ratio_sample=args.ratio_sample
+                        #    ,ratio_sample=args.ratio_sample
                            ) 
               for name in val_NAMES]
-    val_loader =[DataLoader(set, batch_size=args.batch_size, shuffle=False,pin_memory=pin)for set in val_set]    
+    val_loader =[DataLoader(set, batch_size=5, shuffle=False,pin_memory=pin)for set in val_set]    
     output_dir = args.save_dir
     
     # val_set = DATA_BRAIN(train=False,r=int(args.patch_size/2), device=args.device)
@@ -331,7 +343,7 @@ def main(args):
                                       ,scheduler=scheduler
                                       , device=device, epoch=epoch + 1
                                       )
-        if (epoch+1)%8 ==0: 
+        if (epoch+1)%4 ==0: 
             hvg_pcc_list = []
             heg_pcc_list = []
             mse_list = []

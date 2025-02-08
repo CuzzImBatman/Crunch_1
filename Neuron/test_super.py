@@ -45,7 +45,7 @@ def val_one_epoch(model, val_loader, device, centroid,demo=False, encoder_mode =
         output,label,_,_,centroid_index,edge_index = model(graph_data)
         head= min(centroid,len(data))
         min_bound=0.23
-        min_bound=0
+        # min_bound=0
         
         # choosen_mask = [ 36,  37, 100, 172, 375, 453]
         # output[:,choosen_mask]=0
@@ -88,8 +88,9 @@ def val_one_epoch(model, val_loader, device, centroid,demo=False, encoder_mode =
         label = torch.from_numpy(label).to(device)
         labels = torch.cat([labels.cpu(), label.cpu()], dim=0)
         preds = torch.cat([preds.cpu(), output.detach().cpu()], dim=0)
-        preds = torch.round(preds * 100) / 100
+        # preds = torch.round(preds * 100) / 100
         # labels = torch.round(labels * 100) / 100
+
 
         # if i==3 and demo==True:
         #     break
