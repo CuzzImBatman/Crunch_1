@@ -6,7 +6,7 @@ import numpy as np
 # from torch.utils.data import Dataset, DataLoader
 from torch_geometric.loader import DataLoader
 import torch
-from model import GATModel_3,GATModel_5,GATModel_TRANS
+from model import GATModel_3,GATModel_5,GATModel_TRANS,GATModel_test
 import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
 from dataset import SuperNeuronData,build_super_batch_graph
@@ -26,7 +26,7 @@ from scipy.stats import pearsonr,spearmanr
 
 
 @torch.no_grad()
-def val_one_epoch(model, val_loader, device, centroid,demo=False, encoder_mode =False, data_type='val',choosen_mask=None):
+def val_one_epoch(model, val_loader, device, args , data_type='val',choosen_mask=None):
     model.eval()
     labels = torch.tensor([], device=device)
     preds = torch.tensor([], device=device)
@@ -34,18 +34,19 @@ def val_one_epoch(model, val_loader, device, centroid,demo=False, encoder_mode =
         val_loader = tqdm(val_loader, file=sys.stdout, ncols=100, colour='blue')
     elif data_type == 'test':
         val_loader = tqdm(val_loader, file=sys.stdout, ncols=100, colour='green')
-
+    centroid= args.batch_size
     for i, data in enumerate(val_loader):
         # data = data.to(device)
         graph_data= build_super_batch_graph(data,device)
         # data.cpu()
         # graph_data.cpu()
-        if encoder_mode ==True:
+        
+        if args.encoder_mode ==True:
             centroid=0
-        output,label,_,_,centroid_index,edge_index = model(graph_data)
+        output,label,_,_,centroid_index,edge_index,_ = model(graph_data)
         head= min(centroid,len(data))
         min_bound=0.23
-        # min_bound=0
+        min_bound=0
         
         # choosen_mask = [ 36,  37, 100, 172, 375, 453]
         # output[:,choosen_mask]=0
@@ -81,6 +82,9 @@ def val_one_epoch(model, val_loader, device, centroid,demo=False, encoder_mode =
 
         
         # print(centroid_index,head)
+        if args.nolog1p == True:
+            output= torch.log1p(output*100)
+            label= np.log1p(label*100)
         output= output[mask]
         label= label[mask]
         # print(label[0])
@@ -119,7 +123,7 @@ def parse():
     parser.add_argument('--encoder_name', default='vitsmall', help='fixed encoder name, for saving folder name')
     parser.add_argument('--demo', default=False, type=bool, help='toy run')
     parser.add_argument('--input_dim', default=1024, type=int, help='input dimmension')
-
+    parser.add_argument('--nolog1p', default=False, type=bool, help='no log1p in dataset')
     return parser.parse_args()
 
 
@@ -157,13 +161,18 @@ def main(args):
     dir=args.embed_dir
     with open(f'E:/DATA/crunch/resources/indices_test_list_7.pkl','rb') as f:
         indices_test_list=pickle.load(f)
-    model=GATModel_TRANS(input_dim=args.input_dim)
+    model=GATModel_test(input_dim=args.input_dim)
     model= model.to(device)
 
     start_epoch= args.start_epoch
     model = load_checkpoint(args.start_epoch, model,args=args)
     
-    val_set= [SuperNeuronData(emb_folder=dir,train=False, split =True,name_list= [name],encoder_mode=args.encoder_mode) 
+    val_set= [SuperNeuronData(emb_folder=dir
+                              ,train=False
+                              , split =True
+                              ,name_list= [name]
+                          ,nolog1p= args.nolog1p
+                              ,encoder_mode=args.encoder_mode) 
               for name in NAMES]
     val_loader =[DataLoader(set, batch_size=args.batch_size, shuffle=False,pin_memory=True)for set in val_set]    
     output_dir = args.save_dir
@@ -191,11 +200,12 @@ def main(args):
     mae_list = []
     
     for index in range(len(val_loader)): 
-        val_preds, val_labels = val_one_epoch(model=model,demo=args.demo
+        val_preds, val_labels = val_one_epoch(model=model
+                                              ,args=args
                                                 , val_loader=val_loader[index]
                                                 , device=device, data_type='val'
-                                                , centroid= args.batch_size
-                                                ,encoder_mode=args.encoder_mode
+                                                # , centroid= args.batch_size
+                                                # ,encoder_mode=args.encoder_mode
                                                 ,choosen_mask= indices_test_list[index][0])
         mse=mean_squared_error(val_labels, val_preds)
         mae=mean_absolute_error(val_labels, val_preds)

@@ -74,8 +74,8 @@ def train_one_epoch(model,args, train_loader, optimizer,scheduler, device, epoch
                 # loss = (1-beta)*(1-loss_function(pred, label).mean())  + beta*F.mse_loss(pred, label)
                 # loss = 1-loss_function(pred, label).mean()
                 # loss= loss_function(pred, label)
-                loss = 0.05*loss_function(pred, label) + \
-                +5*F.mse_loss(pred, label) +\
+                loss = 0.025*loss_function(pred, label) + \
+                +3.5*F.mse_loss(pred, label) +\
                 0.01* torch.linalg.vector_norm(h_1, ord=float('inf'))
                 # 0.01* torch.linalg.vector_norm(h_1, ord=float('inf')) 
             loss.backward()
@@ -229,7 +229,7 @@ def main(args):
     train_NAMES= NAMES
     val_NAMES=NAMES
     if args.demo== True:
-        NAMES=NAMES[:1]
+        NAMES=[NAMES[5]]
         train_NAMES=NAMES
         val_NAMES=NAMES
     if args.partial>=0:
@@ -343,7 +343,7 @@ def main(args):
                                       ,scheduler=scheduler
                                       , device=device, epoch=epoch + 1
                                       )
-        if (epoch+1)%8 ==0: 
+        if (epoch+1)%4 ==0: 
             hvg_pcc_list = []
             heg_pcc_list = []
             mse_list = []
